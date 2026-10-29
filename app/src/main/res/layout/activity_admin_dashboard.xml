@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground"
+    android:orientation="vertical">
+
+    <!-- Common Header -->
+    <include
+        android:id="@+id/headerLayout"
+        layout="@layout/layout_common_header" />
+
+    <!-- Tab Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnTabStudents"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/tab_students"
+            android:textSize="13sp"
+            android:backgroundTint="@color/colorPrimary"
+            android:textColor="@color/white"
+            style="?attr/borderlessButtonStyle" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/dividerColor" />
+
+        <Button
+            android:id="@+id/btnTabComplaints"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/tab_complaints"
+            android:textSize="13sp"
+            android:backgroundTint="@color/white"
+            android:textColor="@color/colorPrimary"
+            style="?attr/borderlessButtonStyle" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/dividerColor" />
+
+        <Button
+            android:id="@+id/btnTabNotices"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="@string/tab_notices"
+            android:textSize="13sp"
+            android:backgroundTint="@color/white"
+            android:textColor="@color/colorPrimary"
+            style="?attr/borderlessButtonStyle" />
+
+    </LinearLayout>
+
+    <!-- Content Panels -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Students Panel -->
+        <LinearLayout
+            android:id="@+id/panelStudents"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvEmptyStudents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_students"
+                android:textSize="14sp"
+                android:textColor="@color/textSecondary"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvStudents"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+        <!-- Complaints Panel -->
+        <LinearLayout
+            android:id="@+id/panelComplaints"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvEmptyComplaints"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_complaints"
+                android:textSize="14sp"
+                android:textColor="@color/textSecondary"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvComplaints"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+        <!-- Notices Panel -->
+        <LinearLayout
+            android:id="@+id/panelNotices"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btnAddNotice"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/btn_add_notice"
+                android:backgroundTint="@color/colorSecondary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvEmptyNotices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_notices"
+                android:textSize="14sp"
+                android:textColor="@color/textSecondary"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvNotices"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

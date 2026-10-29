@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="RoomSeatView">
+        <attr name="roomTitleTextSize" format="dimension" />
+        <attr name="interactiveMode" format="boolean" />
+        <attr name="colorAvailable" format="color" />
+        <attr name="colorOccupied" format="color" />
+        <attr name="colorMySeat" format="color" />
+        <attr name="colorSelected" format="color" />
+    </declare-styleable>
+</resources>
