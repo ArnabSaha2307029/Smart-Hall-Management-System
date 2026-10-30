@@ -15,7 +15,6 @@ import java.util.UUID;
 
 public class HallRepository {
 
-    // ---------- Singleton ----------
     private static volatile HallRepository instance;
 
     public static HallRepository getInstance() {
@@ -29,7 +28,6 @@ public class HallRepository {
         return instance;
     }
 
-    // ---------- In-Memory Store ----------
     private final Map<String, Student> studentMap = new HashMap<>();
     private final Map<String, Room> roomMap = new HashMap<>();
     private final List<FeeRecord> feeRecords = new ArrayList<>();
@@ -38,22 +36,18 @@ public class HallRepository {
     private int complaintCounter = 0;
     private int noticeCounter = 0;
 
-    // Admin credentials
     private static final String ADMIN_ID = "admin";
     private static final String ADMIN_PASSWORD = "admin123";
 
-    // ---------- Constructor ----------
     private HallRepository() {
         seedRooms();
         seedStudents();
         seedFeeRecords();
         seedComplaints();
-        seedNotices();
         complaintCounter = complaints.size();
         noticeCounter = notices.size();
     }
 
-    // ---------- Seed Data ----------
     private void seedRooms() {
         String[] roomNums = {"101", "102", "103"};
         for (int i = 0; i < roomNums.length; i++) {
@@ -63,28 +57,24 @@ public class HallRepository {
     }
 
     private void seedStudents() {
-        // Student 1 - the demo student
         Student s1 = new Student("S001", "Arnab Saha", "2307029", "CSE",
                 "+8801712345678", "arnab@university.edu",
                 "101", "A", FeeRecord.STATUS_UNPAID, "pass123");
         studentMap.put(s1.getId(), s1);
         roomMap.get("101").occupySeat(Room.SEAT_A, s1.getId());
 
-        // Student 2
         Student s2 = new Student("S002", "Rakib Hasan", "2307045", "EEE",
                 "+8801812345679", "rakib@university.edu",
                 "101", "B", FeeRecord.STATUS_UNPAID, "pass456");
         studentMap.put(s2.getId(), s2);
         roomMap.get("101").occupySeat(Room.SEAT_B, s2.getId());
 
-        // Student 3
         Student s3 = new Student("S003", "Fatima Akter", "2307062", "ME",
                 "+8801912345680", "fatima@university.edu",
                 "102", "A", FeeRecord.STATUS_PAID, "pass789");
         studentMap.put(s3.getId(), s3);
         roomMap.get("102").occupySeat(Room.SEAT_A, s3.getId());
 
-        // Student 4
         Student s4 = new Student("S004", "Mehedi Islam", "2307088", "CE",
                 "+8801612345681", "mehedi@university.edu",
                 "102", "C", FeeRecord.STATUS_UNPAID, "pass000");
@@ -93,7 +83,6 @@ public class HallRepository {
     }
 
     private void seedFeeRecords() {
-        // Fee records for all students - 3 months each
         String[][] studentIds = {{"S001"}, {"S002"}, {"S003"}, {"S004"}};
         String[] months = {"August 2026", "September 2026", "October 2026"};
         String[] dueDates = {"31 Aug 2026", "30 Sep 2026", "31 Oct 2026"};
@@ -132,27 +121,6 @@ public class HallRepository {
                 "14 Oct 2026", Complaint.STATUS_PENDING));
     }
 
-    private void seedNotices() {
-        notices.add(new Notice("N001",
-                "Hall Fee Payment Deadline Extended",
-                "Dear residents of Amar Ekushey Hall, the October 2026 hall fee payment deadline has been extended to 20th October 2026. Please clear dues at the accounts office (Room G-02) between 9 AM - 4 PM on working days.",
-                "10 Oct 2026"));
-
-        notices.add(new Notice("N002",
-                "Scheduled Maintenance - Water Supply",
-                "Please be informed that water supply to all floors will be suspended on 17th October 2026 (Saturday) from 8:00 AM to 2:00 PM due to scheduled maintenance of the overhead tank. Residents are requested to store water beforehand.",
-                "12 Oct 2026"));
-
-        notices.add(new Notice("N003",
-                "Amar Ekushey Hall Annual Sports Day",
-                "The Amar Ekushey Hall Annual Sports Day will be held on 25th October 2026. We are looking for enthusiastic student volunteers to help organize events. Interested students may contact the Hall Provost Office by 18th October 2026.",
-                "15 Oct 2026"));
-    }
-
-    // ---------- Auth ----------
-    /**
-     * Authenticates a user. Returns "ADMIN", "STUDENT", or null on failure.
-     */
     public synchronized String authenticateUser(String userId, String password, String role) {
         if ("ADMIN".equals(role)) {
             if (ADMIN_ID.equals(userId) && ADMIN_PASSWORD.equals(password)) {
@@ -170,7 +138,6 @@ public class HallRepository {
         return null;
     }
 
-    // ---------- Students ----------
     public synchronized List<Student> getStudents() {
         return new ArrayList<>(studentMap.values());
     }
@@ -186,7 +153,6 @@ public class HallRepository {
         return null;
     }
 
-    // ---------- Rooms ----------
     public synchronized List<Room> getRooms() {
         return new ArrayList<>(roomMap.values());
     }
@@ -195,23 +161,17 @@ public class HallRepository {
         return roomMap.get(roomNumber);
     }
 
-    /**
-     * Allocates seat for a student. Frees old seat if any, then occupies new seat.
-     * Returns true on success, false if seat is already taken.
-     */
     public synchronized boolean allocateSeat(String studentId, String newRoomNumber, String newSeat) {
         Student student = studentMap.get(studentId);
         if (student == null) return false;
         Room newRoom = roomMap.get(newRoomNumber);
         if (newRoom == null) return false;
 
-        // Check if the target seat is available (ignore the student's own current seat)
         String currentOccupant = newRoom.getOccupantId(newSeat);
         if (!currentOccupant.isEmpty() && !currentOccupant.equals(studentId)) {
-            return false; // seat taken by someone else
+            return false;
         }
 
-        // Free old seat
         if (student.getAllocatedRoom() != null && !student.getAllocatedRoom().equalsIgnoreCase("Unassigned")) {
             Room oldRoom = roomMap.get(student.getAllocatedRoom());
             if (oldRoom != null && student.getAllocatedSeat() != null
@@ -220,14 +180,12 @@ public class HallRepository {
             }
         }
 
-        // Assign new seat
         newRoom.occupySeat(newSeat, studentId);
         student.setAllocatedRoom(newRoomNumber);
         student.setAllocatedSeat(newSeat);
         return true;
     }
 
-    // ---------- Fee Records ----------
     public synchronized List<FeeRecord> getFeeRecordsByStudent(String studentId) {
         List<FeeRecord> result = new ArrayList<>();
         for (FeeRecord fr : feeRecords) {
@@ -240,7 +198,6 @@ public class HallRepository {
         for (FeeRecord fr : feeRecords) {
             if (fr.getId().equals(feeRecordId)) {
                 fr.setStatus(newStatus);
-                // Also update student's overall fee status based on latest month
                 updateStudentFeeStatus(fr.getStudentId());
                 break;
             }
@@ -262,7 +219,6 @@ public class HallRepository {
         }
     }
 
-    // ---------- Complaints ----------
     public synchronized List<Complaint> getAllComplaints() {
         return new ArrayList<>(complaints);
     }
@@ -292,16 +248,14 @@ public class HallRepository {
         }
     }
 
-    // ---------- Notices ----------
     public synchronized List<Notice> getNotices() {
         return new ArrayList<>(notices);
     }
 
     public synchronized void addNotice(Notice notice) {
-        notices.add(0, notice); // newest first
+        notices.add(0, notice);
     }
 
-    // ---------- ID Generation ----------
     public synchronized String generateComplaintId() {
         complaintCounter++;
         return "C" + String.format("%03d", complaintCounter);

@@ -4,29 +4,37 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityAdminDashboardBinding;
 import com.example.smarthall.model.Complaint;
-import com.example.smarthall.model.Notice;
+import com.example.smarthall.model.NoticeModel;
 import com.example.smarthall.model.Student;
+import com.example.smarthall.network.FcmNotificationSender;
 import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.adapters.ComplaintAdapter;
-import com.example.smarthall.ui.adapters.NoticeAdapter;
+import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
 public class AdminDashboardActivity extends BaseActivity {
 
@@ -34,7 +42,10 @@ public class AdminDashboardActivity extends BaseActivity {
     private HallRepository repository;
     private StudentAdapter studentAdapter;
     private ComplaintAdapter complaintAdapter;
-    private NoticeAdapter noticeAdapter;
+    private FirebaseNoticeAdapter noticeAdapter;
+    private List<NoticeModel> noticeList = new ArrayList<>();
+    private DatabaseReference noticeRef;
+    private ValueEventListener noticeListener;
 
     private static final int TAB_STUDENTS = 0;
     private static final int TAB_COMPLAINTS = 1;
@@ -48,10 +59,14 @@ public class AdminDashboardActivity extends BaseActivity {
         setContentView(binding.getRoot());
 
         repository = HallRepository.getInstance();
+        FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+        noticeRef = database.getReference("hall_announcements");
 
         setupHeader();
         setupRecyclerViews();
         setupTabButtons();
+        setupBroadcastNotice();
+        setupNoticesListener();
         switchTab(TAB_STUDENTS);
     }
 
@@ -61,6 +76,14 @@ public class AdminDashboardActivity extends BaseActivity {
         refreshCurrentTab();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (noticeRef != null && noticeListener != null) {
+            noticeRef.removeEventListener(noticeListener);
+        }
+    }
+
     private void setupHeader() {
         binding.headerLayout.tvHallName.setText(R.string.hall_name);
         binding.headerLayout.tvRoleSubtitle.setText("Logged in as: Admin");
@@ -68,7 +91,6 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void setupRecyclerViews() {
-        // Students RecyclerView
         studentAdapter = new StudentAdapter(repository.getStudents(), student -> {
             Intent intent = new Intent(this, StudentDetailActivity.class);
             intent.putExtra("EXTRA_STUDENT_ID", student.getId());
@@ -77,7 +99,6 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.rvStudents.setLayoutManager(new LinearLayoutManager(this));
         binding.rvStudents.setAdapter(studentAdapter);
 
-        // Complaints RecyclerView
         complaintAdapter = new ComplaintAdapter(repository.getAllComplaints(),
                 complaint -> {
                     repository.toggleComplaintStatus(complaint.getId());
@@ -87,10 +108,39 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.rvComplaints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvComplaints.setAdapter(complaintAdapter);
 
-        // Notices RecyclerView
-        noticeAdapter = new NoticeAdapter(repository.getNotices());
+        noticeAdapter = new FirebaseNoticeAdapter(noticeList);
         binding.rvNotices.setLayoutManager(new LinearLayoutManager(this));
         binding.rvNotices.setAdapter(noticeAdapter);
+    }
+
+    private void setupNoticesListener() {
+        noticeListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                noticeList.clear();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    NoticeModel notice = child.getValue(NoticeModel.class);
+                    if (notice != null) {
+                        noticeList.add(notice);
+                    }
+                }
+                Collections.sort(noticeList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+                noticeAdapter.notifyDataSetChanged();
+                if (noticeList.isEmpty()) {
+                    binding.tvEmptyNotices.setVisibility(View.VISIBLE);
+                    binding.rvNotices.setVisibility(View.GONE);
+                } else {
+                    binding.tvEmptyNotices.setVisibility(View.GONE);
+                    binding.rvNotices.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("ADMIN_NOTICES", "Failed to load notices", error.toException());
+            }
+        };
+        noticeRef.addValueEventListener(noticeListener);
     }
 
     private void setupTabButtons() {
@@ -100,14 +150,60 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.btnAddNotice.setOnClickListener(v -> showAddNoticeDialog());
     }
 
+    private void setupBroadcastNotice() {
+        binding.btnBroadcastNotice.setOnClickListener(v -> {
+            String title = binding.etNoticeTitle.getText() != null
+                    ? binding.etNoticeTitle.getText().toString().trim()
+                    : "";
+            String message = binding.etNoticeMessage.getText() != null
+                    ? binding.etNoticeMessage.getText().toString().trim()
+                    : "";
+
+            if (TextUtils.isEmpty(title)) {
+                binding.etNoticeTitle.setError("Notice title is required");
+                binding.etNoticeTitle.requestFocus();
+                return;
+            }
+
+            if (TextUtils.isEmpty(message)) {
+                binding.etNoticeMessage.setError("Notice content is required");
+                binding.etNoticeMessage.requestFocus();
+                return;
+            }
+
+            FirebaseAuth auth = FirebaseAuth.getInstance();
+            String poster = auth.getCurrentUser() != null && auth.getCurrentUser().getEmail() != null
+                    ? auth.getCurrentUser().getEmail()
+                    : "Admin";
+
+            String id = noticeRef.push().getKey();
+            if (id == null) {
+                Toast.makeText(AdminDashboardActivity.this, "Failed to generate notice ID", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            NoticeModel noticeModel = new NoticeModel(id, title, message, poster, System.currentTimeMillis());
+
+            noticeRef.child(id).setValue(noticeModel).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, id, title, message, poster, noticeModel.getTimestamp());
+                    binding.etNoticeTitle.setText("");
+                    binding.etNoticeMessage.setText("");
+                    Toast.makeText(AdminDashboardActivity.this, "Emergency notice broadcasted live", Toast.LENGTH_SHORT).show();
+                } else {
+                    String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to broadcast notice";
+                    Toast.makeText(AdminDashboardActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+    }
+
     private void switchTab(int tab) {
         currentTab = tab;
-        // Hide all panels
         binding.panelStudents.setVisibility(View.GONE);
         binding.panelComplaints.setVisibility(View.GONE);
         binding.panelNotices.setVisibility(View.GONE);
 
-        // Reset button styles
         int inactive = getResources().getColor(R.color.white, null);
         int active = getResources().getColor(R.color.colorPrimary, null);
         int inactiveText = getResources().getColor(R.color.colorPrimary, null);
@@ -161,10 +257,9 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void refreshNotices() {
-        List<Notice> notices = repository.getNotices();
-        noticeAdapter.updateData(notices);
-        binding.tvEmptyNotices.setVisibility(notices.isEmpty() ? View.VISIBLE : View.GONE);
-        binding.rvNotices.setVisibility(notices.isEmpty() ? View.GONE : View.VISIBLE);
+        boolean isEmpty = noticeList.isEmpty();
+        binding.tvEmptyNotices.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        binding.rvNotices.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
     }
 
     private void showAddNoticeDialog() {
@@ -198,16 +293,33 @@ public class AdminDashboardActivity extends BaseActivity {
                 return;
             }
 
-            String date = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(new Date());
-            Notice notice = new Notice(repository.generateNoticeId(), title, message, date);
-            repository.addNotice(notice);
-            refreshNotices();
-            Toast.makeText(this, "Notice published successfully", Toast.LENGTH_SHORT).show();
+            FirebaseAuth auth = FirebaseAuth.getInstance();
+            String poster = auth.getCurrentUser() != null && auth.getCurrentUser().getEmail() != null
+                    ? auth.getCurrentUser().getEmail()
+                    : "Admin";
+            String id = noticeRef.push().getKey();
+            if (id == null) {
+                Toast.makeText(AdminDashboardActivity.this, "Failed to generate notice ID", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            NoticeModel noticeModel = new NoticeModel(id, title, message, poster, System.currentTimeMillis());
+            noticeRef.child(id).setValue(noticeModel).addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, id, title, message, poster, noticeModel.getTimestamp());
+                    Toast.makeText(AdminDashboardActivity.this, "Notice published successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to publish notice";
+                    Toast.makeText(AdminDashboardActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                }
+            });
+
             dialog.dismiss();
         });
     }
 
     private void logout() {
+        FirebaseAuth.getInstance().signOut();
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

@@ -49,6 +49,13 @@ public class LoginActivity extends BaseActivity {
         db = FirebaseFirestore.getInstance();
 
         setupClickListeners();
+
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser != null) {
+            binding.layoutFormInputs.setVisibility(View.GONE);
+            binding.progressBar.setVisibility(View.VISIBLE);
+            fetchUserRoleAndNavigate(currentUser.getUid());
+        }
     }
 
     private void setupClickListeners() {
@@ -116,14 +123,12 @@ public class LoginActivity extends BaseActivity {
                 if (user != null) {
                     fetchUserRoleAndNavigate(user.getUid());
                 } else {
-                    binding.btnLogin.setEnabled(true);
-                    binding.progressBar.setVisibility(View.GONE);
+                    restoreLoginForm();
                 }
             } else {
                 String errorMsg = task.getException() != null ? task.getException().getMessage() : "Authentication failed";
                 Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                binding.btnLogin.setEnabled(true);
-                binding.progressBar.setVisibility(View.GONE);
+                restoreLoginForm();
             }
         });
     }
@@ -135,8 +140,6 @@ public class LoginActivity extends BaseActivity {
                 if (document != null && document.exists()) {
                     String role = document.getString("role");
                     if ("admin".equalsIgnoreCase(role)) {
-                        binding.progressBar.setVisibility(View.GONE);
-                        binding.btnLogin.setEnabled(true);
                         Intent intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
                         intent.putExtra("EXTRA_USER_ID", uid);
                         intent.putExtra("EXTRA_USER_ROLE", "ADMIN");
@@ -144,8 +147,6 @@ public class LoginActivity extends BaseActivity {
                         startActivity(intent);
                         finish();
                     } else if ("student".equalsIgnoreCase(role)) {
-                        binding.progressBar.setVisibility(View.GONE);
-                        binding.btnLogin.setEnabled(true);
                         String studentId = document.getString("studentId");
                         if (studentId == null || studentId.isEmpty()) {
                             studentId = document.getString("rollNumber");
@@ -161,23 +162,24 @@ public class LoginActivity extends BaseActivity {
                         finish();
                     } else {
                         Toast.makeText(LoginActivity.this, "Unknown user role: " + role, Toast.LENGTH_SHORT).show();
-                        mAuth.signOut();
-                        binding.progressBar.setVisibility(View.GONE);
-                        binding.btnLogin.setEnabled(true);
+                        restoreLoginForm();
                     }
                 } else {
                     Toast.makeText(LoginActivity.this, "User profile not registered in hall database", Toast.LENGTH_SHORT).show();
-                    mAuth.signOut();
-                    binding.progressBar.setVisibility(View.GONE);
-                    binding.btnLogin.setEnabled(true);
+                    restoreLoginForm();
                 }
             } else {
                 String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to fetch user role";
                 Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                binding.progressBar.setVisibility(View.GONE);
-                binding.btnLogin.setEnabled(true);
+                restoreLoginForm();
             }
         });
+    }
+
+    private void restoreLoginForm() {
+        binding.progressBar.setVisibility(View.GONE);
+        binding.layoutFormInputs.setVisibility(View.VISIBLE);
+        binding.btnLogin.setEnabled(true);
     }
 
     private void launchGoogleSignIn() {
@@ -233,14 +235,12 @@ public class LoginActivity extends BaseActivity {
                 if (user != null) {
                     fetchUserRoleAndNavigate(user.getUid());
                 } else {
-                    binding.btnLogin.setEnabled(true);
-                    binding.progressBar.setVisibility(View.GONE);
+                    restoreLoginForm();
                 }
             } else {
                 String errorMsg = task.getException() != null ? task.getException().getMessage() : "Authentication failed";
                 Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                binding.btnLogin.setEnabled(true);
-                binding.progressBar.setVisibility(View.GONE);
+                restoreLoginForm();
             }
         });
     }
