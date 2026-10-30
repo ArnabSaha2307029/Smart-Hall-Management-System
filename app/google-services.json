@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "41128550693",
+    "project_id": "smart-hall-management-sy-748d2",
+    "storage_bucket": "smart-hall-management-sy-748d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41128550693:android:e0152aa8fd66b1ea073acc",
+        "android_client_info": {
+          "package_name": "com.example.smarthall"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8NYyxEgXmK5PDN16ySr3tFDIUeVX99p8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
