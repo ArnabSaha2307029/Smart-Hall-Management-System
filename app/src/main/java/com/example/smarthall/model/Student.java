@@ -11,10 +11,22 @@ public class Student {
     private String allocatedSeat;
     private String feeStatus;
     private String password;
+    private String boarderNo;
+    private String dining;
+
+    public Student() {
+    }
 
     public Student(String id, String name, String rollNumber, String department,
                    String phone, String email, String allocatedRoom,
                    String allocatedSeat, String feeStatus, String password) {
+        this(id, name, rollNumber, department, phone, email, allocatedRoom, allocatedSeat, feeStatus, password, "", "");
+    }
+
+    public Student(String id, String name, String rollNumber, String department,
+                   String phone, String email, String allocatedRoom,
+                   String allocatedSeat, String feeStatus, String password,
+                   String boarderNo, String dining) {
         this.id = id;
         this.name = name;
         this.rollNumber = rollNumber;
@@ -25,6 +37,8 @@ public class Student {
         this.allocatedSeat = allocatedSeat;
         this.feeStatus = feeStatus;
         this.password = password;
+        this.boarderNo = boarderNo;
+        this.dining = dining;
     }
 
     public String getId() { return id; }
@@ -56,6 +70,12 @@ public class Student {
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public String getBoarderNo() { return boarderNo; }
+    public void setBoarderNo(String boarderNo) { this.boarderNo = boarderNo; }
+
+    public String getDining() { return dining; }
+    public void setDining(String dining) { this.dining = dining; }
 
     public boolean isAssigned() {
         return allocatedRoom != null && !allocatedRoom.isEmpty()
