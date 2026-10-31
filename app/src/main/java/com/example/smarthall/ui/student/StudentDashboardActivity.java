@@ -5,7 +5,10 @@ import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -27,12 +30,14 @@ import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.FeeRecord;
 import com.example.smarthall.model.Room;
 import com.example.smarthall.model.Student;
+import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -50,6 +55,9 @@ public class StudentDashboardActivity extends BaseActivity {
     private FeeRecordAdapter feeRecordAdapter;
     private ComplaintAdapter complaintAdapter;
     private ActivityResultLauncher<String> requestPermissionLauncher;
+    private NetworkChangeReceiver networkChangeReceiver;
+    private Snackbar networkSnackbar;
+    private boolean isPreviouslyOffline = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -137,6 +145,46 @@ public class StudentDashboardActivity extends BaseActivity {
             setupSeatView();
             refreshFees();
             refreshComplaints();
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        networkChangeReceiver = new NetworkChangeReceiver(isConnected -> {
+            if (!isConnected) {
+                isPreviouslyOffline = true;
+                if (networkSnackbar != null && networkSnackbar.isShown()) {
+                    networkSnackbar.dismiss();
+                }
+                networkSnackbar = Snackbar.make(binding.getRoot(), "No Internet Connection. Offline mode.", Snackbar.LENGTH_INDEFINITE);
+                networkSnackbar.getView().setBackgroundColor(Color.parseColor("#B71C1C"));
+                ((android.widget.TextView) networkSnackbar.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
+                networkSnackbar.show();
+            } else {
+                if (networkSnackbar != null && networkSnackbar.isShown()) {
+                    networkSnackbar.dismiss();
+                }
+                if (isPreviouslyOffline) {
+                    Snackbar onlineSnack = Snackbar.make(binding.getRoot(), "Back online", Snackbar.LENGTH_SHORT);
+                    onlineSnack.getView().setBackgroundColor(Color.parseColor("#D32F2F"));
+                    ((android.widget.TextView) onlineSnack.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
+                    onlineSnack.show();
+                    isPreviouslyOffline = false;
+                }
+            }
+        });
+        registerReceiver(networkChangeReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (networkChangeReceiver != null) {
+            unregisterReceiver(networkChangeReceiver);
+        }
+        if (networkSnackbar != null && networkSnackbar.isShown()) {
+            networkSnackbar.dismiss();
         }
     }
 
