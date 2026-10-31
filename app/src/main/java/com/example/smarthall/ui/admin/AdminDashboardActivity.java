@@ -673,8 +673,35 @@ public class AdminDashboardActivity extends BaseActivity {
                 cursor.add(Calendar.DAY_OF_MONTH, 1);
             }
 
+            String startDateStr = MealCutoffUtil.formatDisplayDate(closureFrom[0]);
+            String endDateStr = MealCutoffUtil.formatDisplayDate(closureTo[0]);
+            String typePrefix = selectedId == R.id.rbHallClose ? "Hall" : "Meal";
+            String noticeTitle = typePrefix + " Closure from " + startDateStr + " to " + endDateStr;
+            String noticeMessage = typePrefix + " will be closed from " + startDateStr + " to " + endDateStr;
+
+            if (!isClear) {
+                DocumentReference noticeDocRef = FirebaseFirestore.getInstance().collection("notices").document();
+                Map<String, Object> noticeData = new HashMap<>();
+                noticeData.put("id", noticeDocRef.getId());
+                noticeData.put("title", noticeTitle);
+                noticeData.put("message", noticeMessage);
+                noticeData.put("postedBy", "Hall Administration");
+                noticeData.put("timestamp", now);
+                noticeData.put("priority", "HIGH");
+                noticeData.put("type", "CLOSURE");
+                batch.set(noticeDocRef, noticeData);
+            }
+
             dialogBinding.btnApplyClosure.setEnabled(false);
             batch.commit().addOnSuccessListener(aVoid -> {
+                if (!isClear) {
+                    String noticeId = noticeRef.push().getKey();
+                    if (noticeId != null) {
+                        NoticeModel rtdbNotice = new NoticeModel(noticeId, noticeTitle, noticeMessage, "Hall Administration", now);
+                        noticeRef.child(noticeId).setValue(rtdbNotice);
+                        FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, noticeId, noticeTitle, noticeMessage, "Hall Administration", now);
+                    }
+                }
                 Toast.makeText(this, isClear ? "Closure cleared successfully" : "Hall schedule updated successfully", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             }).addOnFailureListener(e -> {
