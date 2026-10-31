@@ -19,6 +19,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -47,16 +48,23 @@ import com.example.smarthall.ui.customview.RoomSeatView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
 
 public class StudentDashboardActivity extends BaseActivity {
 
@@ -186,6 +194,7 @@ public class StudentDashboardActivity extends BaseActivity {
 
         setupHeader();
         setupProfileCard();
+        loadBoarderAndDining();
         setupSeatView();
         setupFeeRecords();
         setupComplaints();
@@ -202,6 +211,7 @@ public class StudentDashboardActivity extends BaseActivity {
         if (student != null) {
             student = repository.getStudentById(student.getId());
             setupProfileCard();
+            loadBoarderAndDining();
             setupSeatView();
             refreshFees();
             refreshComplaints();
@@ -298,6 +308,14 @@ public class StudentDashboardActivity extends BaseActivity {
         } else {
             binding.tvFeeStatusCard.setText("Fee Status: UNPAID");
             binding.tvFeeStatusCard.setTextColor(getResources().getColor(R.color.statusUnpaid, null));
+        }
+
+        if (!TextUtils.isEmpty(student.getBoarderNo())) {
+            binding.tvBoarderNo.setText("Boarder No: " + student.getBoarderNo());
+        }
+        if (!TextUtils.isEmpty(student.getDining())) {
+            String diningText = student.getDining().endsWith("Hall") ? student.getDining() : (student.getDining() + " Hall");
+            binding.tvDiningHall.setText("Dining: " + diningText);
         }
     }
 
@@ -544,6 +562,8 @@ public class StudentDashboardActivity extends BaseActivity {
                 scaledBitmap.recycle();
             }
 
+            uploadProfileImageToFirestore(file);
+
             SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
             prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
 
@@ -554,19 +574,181 @@ public class StudentDashboardActivity extends BaseActivity {
         }
     }
 
+    private void uploadProfileImageToFirestore(File file) {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null || file == null || !file.exists()) {
+            return;
+        }
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            FileInputStream fis = new FileInputStream(file);
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = fis.read(buf)) != -1) {
+                baos.write(buf, 0, len);
+            }
+            fis.close();
+            byte[] fileBytes = baos.toByteArray();
+
+            String base64Image = Base64.encodeToString(fileBytes, Base64.NO_WRAP);
+            FirebaseFirestore.getInstance()
+                    .collection("students")
+                    .document(currentUser.getUid())
+                    .set(Collections.singletonMap("profileImageBase64", base64Image), SetOptions.merge())
+                    .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to upload profile image to Firestore", e));
+        } catch (Exception e) {
+            Log.e("StudentDashboard", "Failed to read profile image for upload", e);
+        }
+    }
+
     private void loadProfileImage() {
         SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
         String path = prefs.getString("profile_image_path", null);
-        if (path != null) {
-            File file = new File(path);
-            if (file.exists()) {
-                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
-                if (bitmap != null) {
-                    binding.ivProfileAvatar.setImageBitmap(bitmap);
-                    return;
-                }
+        File localFile = path != null ? new File(path) : new File(getFilesDir(), "profile_picture.jpg");
+        if (localFile.exists()) {
+            Bitmap bitmap = BitmapFactory.decodeFile(localFile.getAbsolutePath());
+            if (bitmap != null) {
+                binding.ivProfileAvatar.setImageBitmap(bitmap);
+                return;
             }
         }
+
         binding.ivProfileAvatar.setImageResource(R.drawable.ic_person);
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            return;
+        }
+
+        FirebaseFirestore.getInstance()
+                .collection("students")
+                .document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot != null && documentSnapshot.exists()) {
+                        String base64Str = documentSnapshot.getString("profileImageBase64");
+                        if (base64Str != null && !base64Str.isEmpty()) {
+                            try {
+                                byte[] decodedBytes = Base64.decode(base64Str, Base64.DEFAULT);
+                                File file = new File(getFilesDir(), "profile_picture.jpg");
+                                FileOutputStream fos = new FileOutputStream(file);
+                                fos.write(decodedBytes);
+                                fos.flush();
+                                fos.close();
+
+                                prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
+
+                                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                                if (bitmap != null) {
+                                    binding.ivProfileAvatar.setImageBitmap(bitmap);
+                                }
+                            } catch (Exception e) {
+                                Log.e("StudentDashboard", "Failed to decode profile image from Firestore", e);
+                            }
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to fetch profile image from Firestore", e));
+    }
+
+    private void loadBoarderAndDining() {
+        SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
+        String cachedBoarderNo = prefs.getString("boarder_no", null);
+        String cachedDining = prefs.getString("dining_hall", null);
+
+        if (!TextUtils.isEmpty(cachedBoarderNo) && !TextUtils.isEmpty(cachedDining)) {
+            if (student != null) {
+                student.setBoarderNo(cachedBoarderNo);
+                student.setDining(cachedDining);
+            }
+            binding.tvBoarderNo.setText("Boarder No: " + cachedBoarderNo);
+            String diningText = cachedDining.endsWith("Hall") ? cachedDining : (cachedDining + " Hall");
+            binding.tvDiningHall.setText("Dining: " + diningText);
+        }
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            if (TextUtils.isEmpty(cachedBoarderNo) || TextUtils.isEmpty(cachedDining)) {
+                String fallbackBoarderNo = !TextUtils.isEmpty(cachedBoarderNo) ? cachedBoarderNo : String.valueOf(1000 + new Random().nextInt(9000));
+                String fallbackDining = !TextUtils.isEmpty(cachedDining) ? cachedDining : (new Random().nextBoolean() ? "East" : "West");
+                applyBoarderAndDining(fallbackBoarderNo, fallbackDining, prefs);
+            }
+            return;
+        }
+
+        String uid = currentUser.getUid();
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
+            String firestoreBoarderNo = null;
+            String firestoreDining = null;
+
+            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                firestoreBoarderNo = task.getResult().getString("boarderNo");
+                firestoreDining = task.getResult().getString("dining");
+            }
+
+            if (!TextUtils.isEmpty(firestoreBoarderNo) && !TextUtils.isEmpty(firestoreDining)) {
+                applyBoarderAndDining(firestoreBoarderNo, firestoreDining, prefs);
+                return;
+            }
+
+            final String existingBoarderNo = firestoreBoarderNo;
+            final String existingDining = firestoreDining;
+
+            db.collection("users").document(uid).get().addOnCompleteListener(userTask -> {
+                String finalBoarderNo = existingBoarderNo;
+                String finalDining = existingDining;
+
+                if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
+                    if (TextUtils.isEmpty(finalBoarderNo)) {
+                        finalBoarderNo = userTask.getResult().getString("boarderNo");
+                    }
+                    if (TextUtils.isEmpty(finalDining)) {
+                        finalDining = userTask.getResult().getString("dining");
+                    }
+                }
+
+                if (TextUtils.isEmpty(finalBoarderNo)) {
+                    String cached = prefs.getString("boarder_no", null);
+                    if (!TextUtils.isEmpty(cached)) {
+                        finalBoarderNo = cached;
+                    } else {
+                        finalBoarderNo = String.valueOf(1000 + new Random().nextInt(9000));
+                    }
+                }
+
+                if (TextUtils.isEmpty(finalDining)) {
+                    String cached = prefs.getString("dining_hall", null);
+                    if (!TextUtils.isEmpty(cached)) {
+                        finalDining = cached;
+                    } else {
+                        finalDining = new Random().nextBoolean() ? "East" : "West";
+                    }
+                }
+
+                applyBoarderAndDining(finalBoarderNo, finalDining, prefs);
+
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("boarderNo", finalBoarderNo);
+                updates.put("dining", finalDining);
+
+                db.collection("students").document(uid).set(updates, SetOptions.merge())
+                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to students", e));
+                db.collection("users").document(uid).set(updates, SetOptions.merge())
+                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to users", e));
+            });
+        });
+    }
+
+    private void applyBoarderAndDining(String boarderNo, String dining, SharedPreferences prefs) {
+        if (student != null) {
+            student.setBoarderNo(boarderNo);
+            student.setDining(dining);
+        }
+        binding.tvBoarderNo.setText("Boarder No: " + boarderNo);
+        String diningText = dining.endsWith("Hall") ? dining : (dining + " Hall");
+        binding.tvDiningHall.setText("Dining: " + diningText);
+        prefs.edit().putString("boarder_no", boarderNo).putString("dining_hall", dining).apply();
     }
 }

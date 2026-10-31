@@ -144,6 +144,62 @@
                         android:textStyle="bold"
                         android:layout_marginTop="4dp" />
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="10dp">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1dp"
+                            app:strokeColor="#D32F2F"
+                            app:cardBackgroundColor="#FFFFFF">
+
+                            <TextView
+                                android:id="@+id/tvBoarderNo"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:padding="10dp"
+                                android:gravity="center"
+                                android:text="Boarder No: --"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textColor="#B71C1C" />
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="1dp"
+                            app:strokeColor="#D32F2F"
+                            app:cardBackgroundColor="#FFFFFF">
+
+                            <TextView
+                                android:id="@+id/tvDiningHall"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:padding="10dp"
+                                android:gravity="center"
+                                android:text="Dining: --"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textColor="#B71C1C" />
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </LinearLayout>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
