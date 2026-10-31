@@ -54,6 +54,12 @@
             android:parentActivityName=".ui.student.StudentDashboardActivity" />
 
         <activity
+            android:name=".ui.student.UnpaidBillActivity"
+            android:exported="false"
+            android:label="Unpaid Bill"
+            android:parentActivityName=".ui.student.StudentDashboardActivity" />
+
+        <activity
             android:name=".ui.student.NoticeListActivity"
             android:exported="false"
             android:label="Hall Notices"

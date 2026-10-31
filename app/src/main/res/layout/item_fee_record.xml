@@ -77,6 +77,20 @@
                 android:backgroundTint="@color/colorPrimary"
                 android:visibility="gone" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPayNow"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Pay Now"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/colorAccent"
+                app:cornerRadius="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:visibility="gone" />
+
         </LinearLayout>
 
     </LinearLayout>

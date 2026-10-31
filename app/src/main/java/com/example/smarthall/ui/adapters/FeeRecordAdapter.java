@@ -2,31 +2,49 @@ package com.example.smarthall.ui.adapters;
 
 import android.graphics.Color;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.smarthall.R;
 import com.example.smarthall.databinding.ItemFeeRecordBinding;
 import com.example.smarthall.model.FeeRecord;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeViewHolder> {
 
     private List<FeeRecord> feeList;
     private OnFeeToggleListener listener;
     private boolean showToggle;
+    private OnPayClickListener payClickListener;
 
     public interface OnFeeToggleListener {
         void onToggleFeeStatus(FeeRecord feeRecord);
     }
 
+    public interface OnPayClickListener {
+        void onPayClick(FeeRecord feeRecord);
+    }
+
     public FeeRecordAdapter(List<FeeRecord> feeList, OnFeeToggleListener listener, boolean showToggle) {
+        this(feeList, listener, showToggle, null);
+    }
+
+    public FeeRecordAdapter(List<FeeRecord> feeList, OnFeeToggleListener listener, boolean showToggle, OnPayClickListener payClickListener) {
         this.feeList = feeList != null ? feeList : new ArrayList<>();
         this.listener = listener;
         this.showToggle = showToggle;
+        this.payClickListener = payClickListener;
+    }
+
+    public void setOnPayClickListener(OnPayClickListener payClickListener) {
+        this.payClickListener = payClickListener;
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -40,7 +58,7 @@ public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeV
     @Override
     public void onBindViewHolder(@NonNull FeeViewHolder holder, int position) {
         FeeRecord feeRecord = feeList.get(position);
-        holder.bind(feeRecord, listener, showToggle);
+        holder.bind(feeRecord, listener, showToggle, payClickListener);
     }
 
     @Override
@@ -53,6 +71,22 @@ public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeV
         notifyDataSetChanged();
     }
 
+    public void markFeeAsPaid(String feeRecordId, String trxId) {
+        if (feeRecordId == null) {
+            return;
+        }
+        for (int i = 0; i < feeList.size(); i++) {
+            FeeRecord fr = feeList.get(i);
+            if (feeRecordId.equals(fr.getId())) {
+                fr.setStatus(FeeRecord.STATUS_PAID);
+                fr.setTrxId(trxId);
+                fr.setPaidAt(System.currentTimeMillis());
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
     static class FeeViewHolder extends RecyclerView.ViewHolder {
         private final ItemFeeRecordBinding binding;
 
@@ -61,29 +95,38 @@ public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeV
             this.binding = binding;
         }
 
-        void bind(FeeRecord fee, OnFeeToggleListener listener, boolean showToggle) {
+        void bind(FeeRecord fee, OnFeeToggleListener toggleListener, boolean showToggle, OnPayClickListener payClickListener) {
             binding.tvFeeMonth.setText(fee.getMonth());
-            binding.tvFeeAmount.setText(String.format("৳ %.0f BDT", fee.getAmount()));
-            binding.tvFeeDueDate.setText("Due: " + fee.getDueDate());
+            binding.tvFeeAmount.setText(String.format(Locale.US, "৳ %.0f BDT", fee.getAmount()));
+            binding.tvFeeDueDate.setText("Due: " + (fee.getDueDate() != null ? fee.getDueDate() : "N/A"));
 
-            if (FeeRecord.STATUS_PAID.equals(fee.getStatus())) {
+            if (fee.isPaid()) {
                 binding.tvFeeStatus.setText("PAID");
-                binding.tvFeeStatus.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                binding.tvFeeStatus.setBackgroundResource(R.drawable.bg_badge_paid);
                 binding.tvFeeStatus.setTextColor(Color.parseColor("#B71C1C"));
+                binding.btnPayNow.setVisibility(View.GONE);
             } else {
                 binding.tvFeeStatus.setText("UNPAID");
-                binding.tvFeeStatus.setBackgroundColor(Color.parseColor("#FFEBEE"));
+                binding.tvFeeStatus.setBackgroundResource(R.drawable.bg_badge_unpaid);
                 binding.tvFeeStatus.setTextColor(Color.parseColor("#D32F2F"));
+                if (!showToggle && payClickListener != null) {
+                    binding.btnPayNow.setVisibility(View.VISIBLE);
+                    binding.btnPayNow.setOnClickListener(v -> payClickListener.onPayClick(fee));
+                } else {
+                    binding.btnPayNow.setVisibility(View.GONE);
+                }
             }
 
             if (showToggle) {
-                binding.btnToggleFee.setVisibility(android.view.View.VISIBLE);
-                binding.btnToggleFee.setText(FeeRecord.STATUS_PAID.equals(fee.getStatus()) ? "Mark Unpaid" : "Mark Paid");
+                binding.btnToggleFee.setVisibility(View.VISIBLE);
+                binding.btnToggleFee.setText(fee.isPaid() ? "Mark Unpaid" : "Mark Paid");
                 binding.btnToggleFee.setOnClickListener(v -> {
-                    if (listener != null) listener.onToggleFeeStatus(fee);
+                    if (toggleListener != null) {
+                        toggleListener.onToggleFeeStatus(fee);
+                    }
                 });
             } else {
-                binding.btnToggleFee.setVisibility(android.view.View.GONE);
+                binding.btnToggleFee.setVisibility(View.GONE);
             }
         }
     }
