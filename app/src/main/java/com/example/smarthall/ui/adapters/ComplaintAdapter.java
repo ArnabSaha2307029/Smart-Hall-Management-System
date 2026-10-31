@@ -67,20 +67,18 @@ public class ComplaintAdapter extends RecyclerView.Adapter<ComplaintAdapter.Comp
             binding.tvStudentInfo.setText(complaint.getStudentName() + " | Room " + complaint.getRoomNo());
             binding.tvComplaintDate.setText(complaint.getDate());
 
-            // Status chip
             if (Complaint.STATUS_RESOLVED.equals(complaint.getStatus())) {
                 binding.tvComplaintStatus.setText("RESOLVED");
-                binding.tvComplaintStatus.setBackgroundColor(Color.parseColor("#E8F5E9"));
-                binding.tvComplaintStatus.setTextColor(Color.parseColor("#2E7D32"));
+                binding.tvComplaintStatus.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                binding.tvComplaintStatus.setTextColor(Color.parseColor("#B71C1C"));
                 if (showAdminControls) binding.btnToggleStatus.setText("Reopen");
             } else {
                 binding.tvComplaintStatus.setText("PENDING");
-                binding.tvComplaintStatus.setBackgroundColor(Color.parseColor("#FFF3E0"));
-                binding.tvComplaintStatus.setTextColor(Color.parseColor("#E65100"));
+                binding.tvComplaintStatus.setBackgroundColor(Color.parseColor("#FFEBEE"));
+                binding.tvComplaintStatus.setTextColor(Color.parseColor("#D32F2F"));
                 if (showAdminControls) binding.btnToggleStatus.setText("Resolve");
             }
 
-            // Admin toggle button
             if (showAdminControls) {
                 binding.btnToggleStatus.setVisibility(android.view.View.VISIBLE);
                 binding.btnToggleStatus.setOnClickListener(v -> {

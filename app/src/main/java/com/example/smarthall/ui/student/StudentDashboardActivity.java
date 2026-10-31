@@ -30,6 +30,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
@@ -192,6 +193,7 @@ public class StudentDashboardActivity extends BaseActivity {
         student.setDining(prefs.getString("dining_hall", ""));
 
         setupHeader();
+        setupNavigationDrawer();
         setupProfileCard();
         loadStudentDataFromFirestore();
         loadBoarderAndDining();
@@ -200,6 +202,7 @@ public class StudentDashboardActivity extends BaseActivity {
         setupComplaints();
         setupSubmitComplaintButton();
         setupViewNoticesButton();
+        setupMealManagementButton();
         loadProfileImage();
         binding.ivProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
         binding.cardProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
@@ -279,22 +282,79 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void setupViewNoticesButton() {
-        binding.btnViewNotices.setOnClickListener(v -> {
+        binding.btnTopNotices.setOnClickListener(v -> {
+            Intent intent = new Intent(this, NoticeListActivity.class);
+            startActivity(intent);
+        });
+        binding.btnNavViewNotices.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
             Intent intent = new Intent(this, NoticeListActivity.class);
             startActivity(intent);
         });
     }
 
+    private void setupMealManagementButton() {
+        View.OnClickListener listener = v -> {
+            if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(GravityCompat.START);
+            }
+            Intent intent = new Intent(this, MealManagementActivity.class);
+            if (student != null && !TextUtils.isEmpty(student.getRollNumber())) {
+                intent.putExtra("EXTRA_STUDENT_ROLL", student.getRollNumber());
+            }
+            startActivity(intent);
+        };
+        binding.btnMealManagement.setOnClickListener(listener);
+        binding.btnNavMealManagement.setOnClickListener(listener);
+    }
+
     private void setupHeader() {
-        binding.headerLayout.tvHallName.setText(R.string.hall_name);
-        binding.headerLayout.tvRoleSubtitle.setText("Logged in as: " + student.getName());
-        binding.headerLayout.btnLogout.setOnClickListener(v -> logout());
+        binding.btnMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+        binding.btnTopNotices.setOnClickListener(v -> {
+            Intent intent = new Intent(this, NoticeListActivity.class);
+            startActivity(intent);
+        });
+        binding.btnTopLogout.setOnClickListener(v -> logout());
+    }
+
+    private void setupNavigationDrawer() {
+        if (student != null) {
+            binding.tvDrawerStudentName.setText(student.getName());
+            binding.tvDrawerStudentRoll.setText(student.getRollNumber());
+        }
+        binding.btnNavRoomSeat.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            binding.scrollViewContent.smoothScrollTo(0, binding.cardRoomSeat.getTop());
+        });
+        binding.btnNavSubmitComplaint.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            showSubmitComplaintDialog();
+        });
+        binding.btnNavFeeRecords.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            binding.scrollViewContent.smoothScrollTo(0, binding.cardFeeRecords.getTop());
+        });
+        binding.btnNavLogout.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            logout();
+        });
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (binding.drawerLayout != null && binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     private void setupProfileCard() {
         if (student == null) {
             return;
         }
+        binding.tvDrawerStudentName.setText(student.getName());
+        binding.tvDrawerStudentRoll.setText(student.getRollNumber());
         binding.tvStudentName.setText(student.getName());
         binding.tvStudentRoll.setText("Roll: " + (!TextUtils.isEmpty(student.getRollNumber()) ? student.getRollNumber() : ""));
         binding.tvStudentDept.setText("Department: " + (!TextUtils.isEmpty(student.getDepartment()) ? student.getDepartment() : ""));
@@ -406,6 +466,7 @@ public class StudentDashboardActivity extends BaseActivity {
         editor.apply();
 
         setupHeader();
+        setupNavigationDrawer();
         setupProfileCard();
         setupSeatView();
     }

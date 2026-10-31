@@ -68,12 +68,12 @@ public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeV
 
             if (FeeRecord.STATUS_PAID.equals(fee.getStatus())) {
                 binding.tvFeeStatus.setText("PAID");
-                binding.tvFeeStatus.setBackgroundColor(Color.parseColor("#E8F5E9"));
-                binding.tvFeeStatus.setTextColor(Color.parseColor("#2E7D32"));
+                binding.tvFeeStatus.setBackgroundColor(Color.parseColor("#FFCDD2"));
+                binding.tvFeeStatus.setTextColor(Color.parseColor("#B71C1C"));
             } else {
                 binding.tvFeeStatus.setText("UNPAID");
                 binding.tvFeeStatus.setBackgroundColor(Color.parseColor("#FFEBEE"));
-                binding.tvFeeStatus.setTextColor(Color.parseColor("#C62828"));
+                binding.tvFeeStatus.setTextColor(Color.parseColor("#D32F2F"));
             }
 
             if (showToggle) {

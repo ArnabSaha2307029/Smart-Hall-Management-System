@@ -19,10 +19,12 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.view.GravityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityAdminDashboardBinding;
+import com.example.smarthall.databinding.DialogAdminClosureBinding;
 import com.example.smarthall.databinding.DialogStudentDetailsBinding;
 import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.NoticeModel;
@@ -35,6 +37,8 @@ import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.util.MealCutoffUtil;
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -42,15 +46,20 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 public class AdminDashboardActivity extends BaseActivity {
 
@@ -83,6 +92,7 @@ public class AdminDashboardActivity extends BaseActivity {
         noticeRef = database.getReference("hall_announcements");
 
         setupHeader();
+        setupNavigationDrawer();
         setupRecyclerViews();
         setupTabButtons();
         setupBroadcastNotice();
@@ -149,9 +159,45 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void setupHeader() {
-        binding.headerLayout.tvHallName.setText(R.string.hall_name);
-        binding.headerLayout.tvRoleSubtitle.setText("Logged in as: Admin");
-        binding.headerLayout.btnLogout.setOnClickListener(v -> logout());
+        binding.btnAdminMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+        binding.btnTopBroadcastNotice.setOnClickListener(v -> {
+            switchTab(TAB_NOTICES);
+            showAddNoticeDialog();
+        });
+        binding.btnAdminTopLogout.setOnClickListener(v -> logout());
+    }
+
+    private void setupNavigationDrawer() {
+        binding.btnNavStudents.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            switchTab(TAB_STUDENTS);
+        });
+        binding.btnHallClosureManagement.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            showAdminClosureDialog();
+        });
+        binding.btnNavBroadcastNotice.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            switchTab(TAB_NOTICES);
+            showAddNoticeDialog();
+        });
+        binding.btnNavComplaints.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            switchTab(TAB_COMPLAINTS);
+        });
+        binding.btnNavAdminLogout.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            logout();
+        });
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (binding.drawerLayout != null && binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     private void setupRecyclerViews() {
@@ -188,6 +234,7 @@ public class AdminDashboardActivity extends BaseActivity {
                 }
                 Collections.sort(noticeList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
                 noticeAdapter.notifyDataSetChanged();
+                binding.tvStatNotices.setText(String.valueOf(noticeList.size()));
                 if (noticeList.isEmpty()) {
                     binding.tvEmptyNotices.setVisibility(View.VISIBLE);
                     binding.rvNotices.setVisibility(View.GONE);
@@ -335,6 +382,7 @@ public class AdminDashboardActivity extends BaseActivity {
                     List<Student> liveStudentList = new ArrayList<>(uniqueStudentsMap.values());
                     java.util.Collections.sort(liveStudentList, (s1, s2) -> s1.getRoll().compareTo(s2.getRoll()));
                     studentAdapter.updateData(liveStudentList);
+                    binding.tvStatTotalStudents.setText(String.valueOf(liveStudentList.size()));
                     binding.tvEmptyStudents.setVisibility(liveStudentList.isEmpty() ? View.VISIBLE : View.GONE);
                     binding.rvStudents.setVisibility(liveStudentList.isEmpty() ? View.GONE : View.VISIBLE);
                 });
@@ -349,6 +397,7 @@ public class AdminDashboardActivity extends BaseActivity {
     private void refreshComplaints() {
         List<Complaint> complaints = repository.getAllComplaints();
         complaintAdapter.updateData(complaints);
+        binding.tvStatComplaints.setText(String.valueOf(complaints.size()));
         binding.tvEmptyComplaints.setVisibility(complaints.isEmpty() ? View.VISIBLE : View.GONE);
         binding.rvComplaints.setVisibility(complaints.isEmpty() ? View.GONE : View.VISIBLE);
     }
@@ -518,6 +567,120 @@ public class AdminDashboardActivity extends BaseActivity {
 
         dialogBinding.btnDismissDetail.setOnClickListener(v -> {
             dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void showAdminClosureDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        DialogAdminClosureBinding dialogBinding = DialogAdminClosureBinding.inflate(LayoutInflater.from(this));
+        builder.setView(dialogBinding.getRoot());
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        final Calendar[] closureFrom = new Calendar[1];
+        final Calendar[] closureTo = new Calendar[1];
+
+        dialogBinding.etClosureFromDate.setOnClickListener(v -> {
+            MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                    .setTitleText("Select Closure From Date")
+                    .setSelection(closureFrom[0] != null ? closureFrom[0].getTimeInMillis() : MaterialDatePicker.todayInUtcMilliseconds())
+                    .build();
+            picker.addOnPositiveButtonClickListener(selection -> {
+                Calendar utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                utcCal.setTimeInMillis(selection);
+                Calendar localCal = Calendar.getInstance();
+                localCal.set(utcCal.get(Calendar.YEAR), utcCal.get(Calendar.MONTH), utcCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+                localCal.set(Calendar.MILLISECOND, 0);
+                closureFrom[0] = localCal;
+                dialogBinding.etClosureFromDate.setText(MealCutoffUtil.formatDisplayDate(closureFrom[0]));
+                if (closureTo[0] == null || closureTo[0].before(closureFrom[0])) {
+                    closureTo[0] = (Calendar) closureFrom[0].clone();
+                    dialogBinding.etClosureToDate.setText(MealCutoffUtil.formatDisplayDate(closureTo[0]));
+                }
+            });
+            picker.show(getSupportFragmentManager(), "CLOSURE_FROM_PICKER");
+        });
+
+        dialogBinding.etClosureToDate.setOnClickListener(v -> {
+            MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                    .setTitleText("Select Closure To Date")
+                    .setSelection(closureTo[0] != null ? closureTo[0].getTimeInMillis() : (closureFrom[0] != null ? closureFrom[0].getTimeInMillis() : MaterialDatePicker.todayInUtcMilliseconds()))
+                    .build();
+            picker.addOnPositiveButtonClickListener(selection -> {
+                Calendar utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                utcCal.setTimeInMillis(selection);
+                Calendar localCal = Calendar.getInstance();
+                localCal.set(utcCal.get(Calendar.YEAR), utcCal.get(Calendar.MONTH), utcCal.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
+                localCal.set(Calendar.MILLISECOND, 0);
+                closureTo[0] = localCal;
+                dialogBinding.etClosureToDate.setText(MealCutoffUtil.formatDisplayDate(closureTo[0]));
+                if (closureFrom[0] == null) {
+                    closureFrom[0] = (Calendar) closureTo[0].clone();
+                    dialogBinding.etClosureFromDate.setText(MealCutoffUtil.formatDisplayDate(closureFrom[0]));
+                }
+            });
+            picker.show(getSupportFragmentManager(), "CLOSURE_TO_PICKER");
+        });
+
+        dialogBinding.btnCancelClosure.setOnClickListener(v -> dialog.dismiss());
+
+        dialogBinding.btnApplyClosure.setOnClickListener(v -> {
+            if (closureFrom[0] == null || closureTo[0] == null) {
+                Toast.makeText(this, "Please select both From and To dates", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (closureTo[0].before(closureFrom[0])) {
+                Toast.makeText(this, "To Date must be equal to or after From Date", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int selectedId = dialogBinding.rgClosureType.getCheckedRadioButtonId();
+            boolean isClear = selectedId == R.id.rbClearClosure;
+            String status = selectedId == R.id.rbHallClose ? "HALL_CLOSE" : "MEAL_CLOSE";
+
+            WriteBatch batch = FirebaseFirestore.getInstance().batch();
+            Calendar cursor = (Calendar) closureFrom[0].clone();
+            cursor.set(Calendar.HOUR_OF_DAY, 0);
+            cursor.set(Calendar.MINUTE, 0);
+            cursor.set(Calendar.SECOND, 0);
+            cursor.set(Calendar.MILLISECOND, 0);
+
+            Calendar endLimit = (Calendar) closureTo[0].clone();
+            endLimit.set(Calendar.HOUR_OF_DAY, 0);
+            endLimit.set(Calendar.MINUTE, 0);
+            endLimit.set(Calendar.SECOND, 0);
+            endLimit.set(Calendar.MILLISECOND, 0);
+
+            long now = System.currentTimeMillis();
+
+            while (!cursor.after(endLimit)) {
+                String docId = MealCutoffUtil.formatFirestoreDate(cursor);
+                DocumentReference docRef = FirebaseFirestore.getInstance().collection("hall_schedule").document(docId);
+                if (isClear) {
+                    batch.delete(docRef);
+                } else {
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("date", docId);
+                    data.put("status", status);
+                    data.put("updatedAt", now);
+                    batch.set(docRef, data);
+                }
+                cursor.add(Calendar.DAY_OF_MONTH, 1);
+            }
+
+            dialogBinding.btnApplyClosure.setEnabled(false);
+            batch.commit().addOnSuccessListener(aVoid -> {
+                Toast.makeText(this, isClear ? "Closure cleared successfully" : "Hall schedule updated successfully", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+            }).addOnFailureListener(e -> {
+                dialogBinding.btnApplyClosure.setEnabled(true);
+                Toast.makeText(this, "Failed to update schedule: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            });
         });
 
         dialog.show();

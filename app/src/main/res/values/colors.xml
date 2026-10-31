@@ -1,57 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+    <color name="purple_200">#B71C1C</color>
+    <color name="purple_500">#B71C1C</color>
+    <color name="purple_700">#8E0000</color>
+    <color name="teal_200">#FFCDD2</color>
+    <color name="teal_700">#B71C1C</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- App Primary Colors -->
     <color name="colorPrimary">#B71C1C</color>
     <color name="colorPrimaryDark">#8E0000</color>
     <color name="colorPrimaryVariant">#8E0000</color>
-    <color name="colorAccent">#C62828</color>
-    <color name="colorSecondary">#C62828</color>
+    <color name="colorAccent">#D32F2F</color>
+    <color name="colorSecondary">#D32F2F</color>
     <color name="colorSecondaryVariant">#8E0000</color>
     <color name="colorOnPrimary">#FFFFFF</color>
     <color name="colorOnSecondary">#FFFFFF</color>
     <color name="colorSurface">#FFFFFF</color>
-    <color name="colorBackground">#F8F9FA</color>
-    <color name="colorError">#B00020</color>
+    <color name="colorBackground">#FAFAFA</color>
+    <color name="colorError">#B71C1C</color>
 
-    <!-- Header -->
     <color name="headerBackground">#B71C1C</color>
     <color name="headerText">#FFFFFF</color>
 
-    <!-- Seat States -->
-    <color name="seatAvailable">#4CAF50</color>
-    <color name="seatOccupied">#E53935</color>
-    <color name="seatMySeat">#1E88E5</color>
-    <color name="seatSelected">#FFA000</color>
-    <color name="seatBorder">#BDBDBD</color>
+    <color name="seatAvailable">#FFCDD2</color>
+    <color name="seatOccupied">#5C0000</color>
+    <color name="seatMySeat">#B71C1C</color>
+    <color name="seatSelected">#D32F2F</color>
+    <color name="seatBorder">#D32F2F</color>
     <color name="seatLabel">#FFFFFF</color>
 
-    <!-- Status Colors -->
-    <color name="statusPaid">#2E7D32</color>
-    <color name="statusUnpaid">#C62828</color>
-    <color name="statusPending">#E65100</color>
-    <color name="statusResolved">#2E7D32</color>
-    <color name="statusPaidBg">#E8F5E9</color>
+    <color name="statusPaid">#B71C1C</color>
+    <color name="statusUnpaid">#D32F2F</color>
+    <color name="statusPending">#B71C1C</color>
+    <color name="statusResolved">#B71C1C</color>
+    <color name="statusPaidBg">#FFCDD2</color>
     <color name="statusUnpaidBg">#FFEBEE</color>
-    <color name="statusPendingBg">#FFF3E0</color>
-    <color name="statusResolvedBg">#E8F5E9</color>
+    <color name="statusPendingBg">#FFEBEE</color>
+    <color name="statusResolvedBg">#FFCDD2</color>
 
-    <!-- Card & UI -->
     <color name="cardBackground">#FFFFFF</color>
     <color name="dividerColor">#E0E0E0</color>
     <color name="textPrimary">#212121</color>
     <color name="textSecondary">#757575</color>
     <color name="textHint">#9E9E9E</color>
     <color name="adminColor">#B71C1C</color>
-    <color name="studentColor">#2E7D32</color>
+    <color name="studentColor">#B71C1C</color>
     <color name="logoutButton">#8E0000</color>
     <color name="demoAdminBtn">#B71C1C</color>
-    <color name="demoStudentBtn">#2E7D32</color>
+    <color name="demoStudentBtn">#D32F2F</color>
 </resources>

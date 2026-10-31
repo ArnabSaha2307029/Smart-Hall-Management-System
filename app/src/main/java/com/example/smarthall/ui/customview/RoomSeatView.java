@@ -19,20 +19,14 @@ import java.util.Map;
 
 public class RoomSeatView extends View {
 
-    // -------- Seat State Constants --------
     public static final int STATE_AVAILABLE = 0;
     public static final int STATE_OCCUPIED = 1;
     public static final int STATE_MY_SEAT = 2;
     public static final int STATE_SELECTED = 3;
 
-    // -------- Seat Labels --------
     private static final String[] SEAT_LABELS = {Room.SEAT_A, Room.SEAT_B, Room.SEAT_C, Room.SEAT_D};
-    // 2x2 grid positions: [row][col] -> seatLabel
-    // A B
-    // C D
-    private static final int[][] GRID = {{0, 0}, {0, 1}, {1, 0}, {1, 1}}; // row, col for A,B,C,D
+    private static final int[][] GRID = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
 
-    // -------- Paint Objects --------
     private Paint seatPaint;
     private Paint borderPaint;
     private Paint labelPaint;
@@ -41,16 +35,14 @@ public class RoomSeatView extends View {
     private Paint titlePaint;
     private Paint legendRectPaint;
 
-    // -------- Colors --------
-    private int colorAvailable = Color.parseColor("#4CAF50");
-    private int colorOccupied = Color.parseColor("#E53935");
-    private int colorMySeat = Color.parseColor("#1E88E5");
-    private int colorSelected = Color.parseColor("#FFA000");
-    private int colorBorder = Color.parseColor("#BDBDBD");
+    private int colorAvailable = Color.parseColor("#FFCDD2");
+    private int colorOccupied = Color.parseColor("#5C0000");
+    private int colorMySeat = Color.parseColor("#B71C1C");
+    private int colorSelected = Color.parseColor("#D32F2F");
+    private int colorBorder = Color.parseColor("#D32F2F");
     private int colorLabel = Color.WHITE;
-    private int colorBackground = Color.parseColor("#F8F9FA");
+    private int colorBackground = Color.parseColor("#FAFAFA");
 
-    // -------- State --------
     private int[] seatStates = new int[]{STATE_AVAILABLE, STATE_AVAILABLE, STATE_AVAILABLE, STATE_AVAILABLE};
     private String[] seatOccupantNames = new String[]{"Empty", "Empty", "Empty", "Empty"};
     private int selectedSeatIndex = -1;
@@ -58,17 +50,14 @@ public class RoomSeatView extends View {
     private float roomTitleTextSize = 14f;
     private String roomTitle = "Room";
 
-    // -------- Callback --------
     private OnSeatSelectedListener onSeatSelectedListener;
 
-    // -------- Layout Rects --------
     private RectF[] seatRects = new RectF[4];
     private float legendHeight = 60f;
     private float titleHeight = 40f;
     private float padding = 16f;
     private float cornerRadius = 12f;
 
-    // -------- Constructors --------
     public RoomSeatView(Context context) {
         super(context);
         init(context, null);
@@ -84,7 +73,6 @@ public class RoomSeatView extends View {
         init(context, attrs);
     }
 
-    // -------- Initialization --------
     private void init(Context context, AttributeSet attrs) {
         float density = context.getResources().getDisplayMetrics().density;
         padding = 16f * density;
@@ -103,8 +91,7 @@ public class RoomSeatView extends View {
                 colorMySeat = ta.getColor(R.styleable.RoomSeatView_colorMySeat, colorMySeat);
                 colorSelected = ta.getColor(R.styleable.RoomSeatView_colorSelected, colorSelected);
                 ta.recycle();
-            } catch (Exception e) {
-                // Use defaults on any attribute parsing error
+            } catch (Exception ignored) {
             }
         }
 
@@ -136,7 +123,7 @@ public class RoomSeatView extends View {
         occupantPaint.setAlpha(220);
 
         legendPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        legendPaint.setColor(Color.parseColor("#757575"));
+        legendPaint.setColor(Color.parseColor("#212121"));
         legendPaint.setTextSize(roomTitleTextSize * 0.78f);
         legendPaint.setTextAlign(Paint.Align.LEFT);
 
@@ -150,39 +137,32 @@ public class RoomSeatView extends View {
         legendRectPaint.setStyle(Paint.Style.FILL);
     }
 
-    // -------- Measure --------
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int desiredWidth = (int) (300 * getContext().getResources().getDisplayMetrics().density);
         int width = resolveSize(desiredWidth, widthMeasureSpec);
-        // Height = title + grid (square cells) + legend
         float cellSize = (width - padding * 3) / 2f;
         int desiredHeight = (int) (titleHeight + padding + cellSize * 2 + padding * 2 + legendHeight);
         int height = resolveSize(desiredHeight, heightMeasureSpec);
         setMeasuredDimension(width, height);
     }
 
-    // -------- Draw --------
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         int width = getWidth();
         int height = getHeight();
 
-        // Background
         canvas.drawColor(colorBackground);
 
-        // Title
         float titleY = titleHeight * 0.7f;
         canvas.drawText(roomTitle, width / 2f, titleY, titlePaint);
 
-        // Grid dimensions
         float gridTop = titleHeight;
         float gridHeight = height - titleHeight - legendHeight;
         float cellW = (width - padding * 3) / 2f;
         float cellH = (gridHeight - padding * 3) / 2f;
 
-        // Draw 2x2 grid (A=top-left, B=top-right, C=bottom-left, D=bottom-right)
         for (int i = 0; i < 4; i++) {
             int row = GRID[i][0];
             int col = GRID[i][1];
@@ -193,7 +173,6 @@ public class RoomSeatView extends View {
 
             seatRects[i].set(left, top, right, bottom);
 
-            // Seat color
             int state = seatStates[i];
             if (i == selectedSeatIndex && interactiveMode) {
                 seatPaint.setColor(colorSelected);
@@ -209,18 +188,23 @@ public class RoomSeatView extends View {
             canvas.drawRoundRect(seatRects[i], cornerRadius, cornerRadius, seatPaint);
             canvas.drawRoundRect(seatRects[i], cornerRadius, cornerRadius, borderPaint);
 
-            // Seat label (A/B/C/D)
+            if (state == STATE_AVAILABLE && (i != selectedSeatIndex || !interactiveMode)) {
+                labelPaint.setColor(Color.parseColor("#B71C1C"));
+                occupantPaint.setColor(Color.parseColor("#B71C1C"));
+            } else {
+                labelPaint.setColor(Color.WHITE);
+                occupantPaint.setColor(Color.WHITE);
+            }
+
             float centerX = (left + right) / 2f;
             float centerY = (top + bottom) / 2f;
             Paint.FontMetrics fm = labelPaint.getFontMetrics();
             float labelY = centerY - (fm.ascent + fm.descent) / 2f - cellH * 0.1f;
             canvas.drawText("Seat " + SEAT_LABELS[i], centerX, labelY, labelPaint);
 
-            // Occupant name below label
             String occupant = seatOccupantNames[i];
             if (occupant != null && !occupant.isEmpty() && !occupant.equals("Empty")) {
                 float oY = labelY + labelPaint.getTextSize() * 1.2f;
-                // Truncate if too long
                 String displayName = occupant.length() > 12 ? occupant.substring(0, 11) + "\u2026" : occupant;
                 canvas.drawText(displayName, centerX, oY, occupantPaint);
             } else if (state == STATE_AVAILABLE) {
@@ -229,7 +213,6 @@ public class RoomSeatView extends View {
             }
         }
 
-        // Legend
         drawLegend(canvas, width, height);
     }
 
@@ -256,7 +239,6 @@ public class RoomSeatView extends View {
         }
     }
 
-    // -------- Touch --------
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (!interactiveMode) return super.onTouchEvent(event);
@@ -274,7 +256,6 @@ public class RoomSeatView extends View {
     }
 
     private void handleSeatTap(int index) {
-        // Can only select available seats in interactive mode
         if (seatStates[index] == STATE_AVAILABLE || seatStates[index] == STATE_MY_SEAT) {
             selectedSeatIndex = index;
             invalidate();
@@ -282,20 +263,12 @@ public class RoomSeatView extends View {
                 onSeatSelectedListener.onSeatSelected(SEAT_LABELS[index], index);
             }
         } else {
-            // occupied by another student
             if (onSeatSelectedListener != null) {
                 onSeatSelectedListener.onSeatOccupied(SEAT_LABELS[index]);
             }
         }
     }
 
-    // -------- Public API --------
-
-    /**
-     * Set states for all 4 seats.
-     * @param states int[4] where each value is STATE_AVAILABLE, STATE_OCCUPIED, STATE_MY_SEAT
-     * @param occupantNames String[4] occupant name or null/empty for unoccupied
-     */
     public void setSeatData(int[] states, String[] occupantNames) {
         if (states != null && states.length >= 4) {
             System.arraycopy(states, 0, seatStates, 0, 4);
@@ -337,7 +310,6 @@ public class RoomSeatView extends View {
         invalidate();
     }
 
-    // -------- Listener Interface --------
     public interface OnSeatSelectedListener {
         void onSeatSelected(String seatLabel, int seatIndex);
         void onSeatOccupied(String seatLabel);
