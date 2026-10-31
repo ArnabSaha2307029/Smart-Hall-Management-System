@@ -13,6 +13,7 @@ public class Student {
     private String password;
     private String boarderNo;
     private String dining;
+    private String profileImageBase64;
 
     public Student() {
     }
@@ -27,6 +28,13 @@ public class Student {
                    String phone, String email, String allocatedRoom,
                    String allocatedSeat, String feeStatus, String password,
                    String boarderNo, String dining) {
+        this(id, name, rollNumber, department, phone, email, allocatedRoom, allocatedSeat, feeStatus, password, boarderNo, dining, "");
+    }
+
+    public Student(String id, String name, String rollNumber, String department,
+                   String phone, String email, String allocatedRoom,
+                   String allocatedSeat, String feeStatus, String password,
+                   String boarderNo, String dining, String profileImageBase64) {
         this.id = id;
         this.name = name;
         this.rollNumber = rollNumber;
@@ -39,6 +47,7 @@ public class Student {
         this.password = password;
         this.boarderNo = boarderNo;
         this.dining = dining;
+        this.profileImageBase64 = profileImageBase64;
     }
 
     public String getId() { return id; }
@@ -49,6 +58,9 @@ public class Student {
 
     public String getRollNumber() { return rollNumber; }
     public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
+
+    public String getRoll() { return rollNumber != null ? rollNumber : ""; }
+    public void setRoll(String roll) { this.rollNumber = roll; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
@@ -61,6 +73,9 @@ public class Student {
 
     public String getAllocatedRoom() { return allocatedRoom; }
     public void setAllocatedRoom(String allocatedRoom) { this.allocatedRoom = allocatedRoom; }
+
+    public String getRoomNo() { return allocatedRoom != null ? allocatedRoom : ""; }
+    public void setRoomNo(String roomNo) { this.allocatedRoom = roomNo; }
 
     public String getAllocatedSeat() { return allocatedSeat; }
     public void setAllocatedSeat(String allocatedSeat) { this.allocatedSeat = allocatedSeat; }
@@ -76,6 +91,9 @@ public class Student {
 
     public String getDining() { return dining; }
     public void setDining(String dining) { this.dining = dining; }
+
+    public String getProfileImageBase64() { return profileImageBase64; }
+    public void setProfileImageBase64(String profileImageBase64) { this.profileImageBase64 = profileImageBase64; }
 
     public boolean isAssigned() {
         return allocatedRoom != null && !allocatedRoom.isEmpty()
