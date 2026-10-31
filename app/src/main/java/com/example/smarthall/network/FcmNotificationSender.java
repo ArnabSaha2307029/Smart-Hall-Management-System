@@ -29,12 +29,7 @@ public class FcmNotificationSender {
     public static void sendNoticeTopicNotification(Context context, String noticeId, String title, String message, String poster, long timestamp) {
         executor.execute(() -> {
             try {
-                InputStream inputStream;
-                try {
-                    inputStream = context.getAssets().open("service-account.json");
-                } catch (IOException e) {
-                    inputStream = context.getAssets().open("service-account.json.json");
-                }
+                InputStream inputStream = context.getAssets().open("service-account.json");
 
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 byte[] buffer = new byte[1024];
