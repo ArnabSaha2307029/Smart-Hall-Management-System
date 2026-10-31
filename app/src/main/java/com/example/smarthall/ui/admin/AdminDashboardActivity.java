@@ -37,6 +37,7 @@ import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.MealCutoffUtil;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.snackbar.Snackbar;
@@ -58,6 +59,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -481,8 +483,9 @@ public class AdminDashboardActivity extends BaseActivity {
         dialogBinding.tvDetailBoarderNo.setText("Boarder No: " + (!TextUtils.isEmpty(boarderNo) ? boarderNo : "Not Assigned"));
 
         String dining = student.getDining();
-        String diningText = TextUtils.isEmpty(dining) ? "Not Assigned" : (dining.endsWith("Hall") ? dining : dining + " Hall");
-        dialogBinding.tvDetailDining.setText("Dining: " + diningText);
+        String cleanDining = dining != null ? dining.replaceAll("(?i)\\bhall\\b", "").trim() : "East";
+        if (cleanDining.isEmpty()) cleanDining = "East";
+        dialogBinding.tvDetailDining.setText("Dining: " + cleanDining);
 
         String room = !TextUtils.isEmpty(student.getAllocatedRoom()) ? student.getAllocatedRoom() : student.getRoomNo();
         String seat = student.getAllocatedSeat();
@@ -534,11 +537,50 @@ public class AdminDashboardActivity extends BaseActivity {
                             String fsDining = snapshot.getString("dining");
                             if (!TextUtils.isEmpty(fsDining)) {
                                 student.setDining(fsDining);
-                                String dText = fsDining.endsWith("Hall") ? fsDining : (fsDining + " Hall");
-                                dialogBinding.tvDetailDining.setText("Dining: " + dText);
+                                String fsCleanDining = fsDining.replaceAll("(?i)\\bhall\\b", "").trim();
+                                if (fsCleanDining.isEmpty()) fsCleanDining = "East";
+                                dialogBinding.tvDetailDining.setText("Dining: " + fsCleanDining);
                             }
                         }
                     });
+        }
+
+        if (!TextUtils.isEmpty(roll)) {
+            dialogBinding.pbDetailBill.setVisibility(View.VISIBLE);
+            dialogBinding.layoutDetailBillContent.setVisibility(View.GONE);
+            String todayStr = MealCutoffUtil.formatFirestoreDate(Calendar.getInstance());
+            BillingEngine.calculateBillUpToDate(roll, todayStr, new BillingEngine.OnBillCalculatedListener() {
+                @Override
+                public void onBillCalculated(BillingEngine.BillResult result) {
+                    dialogBinding.pbDetailBill.setVisibility(View.GONE);
+                    dialogBinding.layoutDetailBillContent.setVisibility(View.VISIBLE);
+
+                    double unpaid = result.getNetUnpaidAmount();
+                    dialogBinding.tvDetailUnpaidAmount.setText(String.format(Locale.US, "Unpaid Bill (up to today): %.0f BDT", unpaid));
+                    dialogBinding.tvDetailBillBreakdown.setText(String.format(Locale.US,
+                            "Meal: %.0f BDT (%d days) | Hall Fee: %.0f BDT | Paid: %.0f BDT",
+                            result.getMealBill(), result.getActiveMealDays(), result.getHallFee(), result.getAlreadyPaid()));
+
+                    if (unpaid <= 0) {
+                        dialogBinding.tvDetailNoDueBadge.setVisibility(View.VISIBLE);
+                    } else {
+                        dialogBinding.tvDetailNoDueBadge.setVisibility(View.GONE);
+                    }
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    dialogBinding.pbDetailBill.setVisibility(View.GONE);
+                    dialogBinding.layoutDetailBillContent.setVisibility(View.VISIBLE);
+                    dialogBinding.tvDetailUnpaidAmount.setText("Unpaid Bill: Unavailable");
+                    dialogBinding.tvDetailBillBreakdown.setText("Failed to calculate live dues");
+                }
+            });
+        } else {
+            dialogBinding.pbDetailBill.setVisibility(View.GONE);
+            dialogBinding.layoutDetailBillContent.setVisibility(View.VISIBLE);
+            dialogBinding.tvDetailUnpaidAmount.setText("Unpaid Bill: No Roll Found");
+            dialogBinding.tvDetailBillBreakdown.setText("Student roll is missing");
         }
 
         AlertDialog dialog = builder.create();

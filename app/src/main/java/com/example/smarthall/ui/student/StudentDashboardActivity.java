@@ -37,6 +37,7 @@ import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityStudentDashboardBinding;
 import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.FeeRecord;
+import com.example.smarthall.model.PaymentRecord;
 import com.example.smarthall.model.Room;
 import com.example.smarthall.model.Student;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
@@ -51,6 +52,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
 
@@ -60,6 +62,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -74,6 +77,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private HallRepository repository;
     private Student student;
     private FeeRecordAdapter feeRecordAdapter;
+    private ListenerRegistration feeListenerRegistration;
     private ComplaintAdapter complaintAdapter;
     private ActivityResultLauncher<String> requestPermissionLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
@@ -203,6 +207,7 @@ public class StudentDashboardActivity extends BaseActivity {
         setupSubmitComplaintButton();
         setupViewNoticesButton();
         setupMealManagementButton();
+        setupUnpaidBillButton();
         loadProfileImage();
         binding.ivProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
         binding.cardProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
@@ -265,6 +270,15 @@ public class StudentDashboardActivity extends BaseActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (feeListenerRegistration != null) {
+            feeListenerRegistration.remove();
+            feeListenerRegistration = null;
+        }
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -306,6 +320,17 @@ public class StudentDashboardActivity extends BaseActivity {
         };
         binding.btnMealManagement.setOnClickListener(listener);
         binding.btnNavMealManagement.setOnClickListener(listener);
+    }
+
+    private void setupUnpaidBillButton() {
+        View.OnClickListener listener = v -> {
+            if (binding.drawerLayout != null && binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                binding.drawerLayout.closeDrawer(GravityCompat.START);
+            }
+            startActivity(new Intent(this, UnpaidBillActivity.class));
+        };
+        binding.btnOpenUnpaidBill.setOnClickListener(listener);
+        binding.btnNavUnpaidBill.setOnClickListener(listener);
     }
 
     private void setupHeader() {
@@ -382,8 +407,9 @@ public class StudentDashboardActivity extends BaseActivity {
             binding.tvBoarderNo.setText("Boarder No: " + student.getBoarderNo());
         }
         if (!TextUtils.isEmpty(student.getDining())) {
-            String diningText = student.getDining().endsWith("Hall") ? student.getDining() : (student.getDining() + " Hall");
-            binding.tvDiningHall.setText("Dining: " + diningText);
+            String cleanDining = student.getDining() != null ? student.getDining().replaceAll("(?i)\\bhall\\b", "").trim() : "East";
+            if (cleanDining.isEmpty()) cleanDining = "East";
+            binding.tvDiningHall.setText("Dining: " + cleanDining);
         }
     }
 
@@ -451,7 +477,11 @@ public class StudentDashboardActivity extends BaseActivity {
         if (!TextUtils.isEmpty(seat)) student.setAllocatedSeat(seat);
         if (!TextUtils.isEmpty(feeStatus)) student.setFeeStatus(feeStatus);
         if (!TextUtils.isEmpty(boarderNo)) student.setBoarderNo(boarderNo);
-        if (!TextUtils.isEmpty(dining)) student.setDining(dining);
+        if (!TextUtils.isEmpty(dining)) {
+            String cleanDining = dining.replaceAll("(?i)\\bhall\\b", "").trim();
+            if (cleanDining.isEmpty()) cleanDining = "East";
+            student.setDining(cleanDining);
+        }
         if (!TextUtils.isEmpty(base64Image)) student.setProfileImageBase64(base64Image);
 
         SharedPreferences.Editor editor = prefs.edit();
@@ -462,13 +492,20 @@ public class StudentDashboardActivity extends BaseActivity {
         if (!TextUtils.isEmpty(phone)) editor.putString("student_phone", phone);
         if (!TextUtils.isEmpty(room)) editor.putString("student_room", room);
         if (!TextUtils.isEmpty(boarderNo)) editor.putString("boarder_no", boarderNo);
-        if (!TextUtils.isEmpty(dining)) editor.putString("dining_hall", dining);
+        if (!TextUtils.isEmpty(dining)) {
+            String cleanDining = dining.replaceAll("(?i)\\bhall\\b", "").trim();
+            if (cleanDining.isEmpty()) cleanDining = "East";
+            editor.putString("dining_hall", cleanDining);
+        }
         editor.apply();
 
         setupHeader();
         setupNavigationDrawer();
         setupProfileCard();
         setupSeatView();
+        if (!TextUtils.isEmpty(roll)) {
+            loadFeeRecordsFromFirestore();
+        }
     }
 
     private void setupSeatView() {
@@ -508,17 +545,135 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void setupFeeRecords() {
-        List<FeeRecord> feeRecords = repository.getFeeRecordsByStudent(student.getId());
-        feeRecordAdapter = new FeeRecordAdapter(feeRecords, null, false);
+        feeRecordAdapter = new FeeRecordAdapter(new ArrayList<>(), null, false, this::openPaymentGateway);
         binding.rvMyFees.setLayoutManager(new LinearLayoutManager(this));
         binding.rvMyFees.setAdapter(feeRecordAdapter);
-        updateFeeEmptyState(feeRecords);
+        loadFeeRecordsFromFirestore();
     }
 
     private void refreshFees() {
-        List<FeeRecord> fees = repository.getFeeRecordsByStudent(student.getId());
-        feeRecordAdapter.updateData(fees);
-        updateFeeEmptyState(fees);
+        loadFeeRecordsFromFirestore();
+    }
+
+    private void loadFeeRecordsFromFirestore() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
+        String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
+                ? student.getRollNumber()
+                : prefs.getString("student_roll", "");
+
+        if (TextUtils.isEmpty(roll)) {
+            return;
+        }
+
+        if (feeListenerRegistration != null) {
+            feeListenerRegistration.remove();
+        }
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        feeListenerRegistration = db.collection("fee_records")
+                .whereEqualTo("roll", roll)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e("StudentDashboard", "Failed to listen for fee records", error);
+                        return;
+                    }
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        createFallbackFeeRecord(roll);
+                        return;
+                    }
+
+                    List<FeeRecord> feeList = new ArrayList<>();
+                    boolean allPaid = true;
+                    for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                        FeeRecord record = parseFeeRecord(doc);
+                        feeList.add(record);
+                        if (!record.isPaid()) {
+                            allPaid = false;
+                        }
+                    }
+
+                    feeRecordAdapter.updateData(feeList);
+                    updateFeeEmptyState(feeList);
+
+                    if (!feeList.isEmpty()) {
+                        student.setFeeStatus(allPaid ? FeeRecord.STATUS_PAID : FeeRecord.STATUS_UNPAID);
+                        setupProfileCard();
+                    }
+                });
+    }
+
+    private void createFallbackFeeRecord(String roll) {
+        String mockDocId = "FEE_" + roll + "_202611";
+        Map<String, Object> mockFee = new HashMap<>();
+        mockFee.put("id", mockDocId);
+        mockFee.put("roll", roll);
+        mockFee.put("month", "November 2026");
+        mockFee.put("diningFee", 2000.0);
+        mockFee.put("hallFee", 1000.0);
+        mockFee.put("totalAmount", 3000.0);
+        mockFee.put("amount", 3000.0);
+        mockFee.put("dueDate", "15/11/2026");
+        mockFee.put("status", "UNPAID");
+        mockFee.put("paidAt", 0L);
+        mockFee.put("trxId", "");
+
+        FirebaseFirestore.getInstance().collection("fee_records")
+                .document(mockDocId)
+                .set(mockFee)
+                .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to create fallback fee record", e));
+    }
+
+    private FeeRecord parseFeeRecord(DocumentSnapshot doc) {
+        FeeRecord record = new FeeRecord();
+        record.setId(doc.getId());
+        record.setRoll(doc.getString("roll"));
+        record.setMonth(doc.getString("month") != null ? doc.getString("month") : "November 2026");
+
+        Double dining = doc.getDouble("diningFee");
+        record.setDiningFee(dining != null ? dining : 0.0);
+
+        Double hall = doc.getDouble("hallFee");
+        record.setHallFee(hall != null ? hall : 0.0);
+
+        Double total = doc.getDouble("totalAmount");
+        if (total == null) {
+            total = doc.getDouble("amount");
+        }
+        record.setTotalAmount(total != null ? total : 0.0);
+        record.setAmount(total != null ? total : 0.0);
+
+        record.setDueDate(doc.getString("dueDate") != null ? doc.getString("dueDate") : "15/11/2026");
+        record.setStatus(doc.getString("status") != null ? doc.getString("status") : "UNPAID");
+
+        Long paidAt = doc.getLong("paidAt");
+        record.setPaidAt(paidAt != null ? paidAt : 0L);
+
+        record.setTrxId(doc.getString("trxId") != null ? doc.getString("trxId") : "");
+        return record;
+    }
+
+    private void openPaymentGateway(FeeRecord feeRecord) {
+        if (feeRecord == null) {
+            return;
+        }
+        String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
+                ? student.getRollNumber() : feeRecord.getRoll();
+
+        PaymentGatewayBottomSheet bottomSheet = PaymentGatewayBottomSheet.newInstance(feeRecord, roll);
+        bottomSheet.setPaymentCallback(payment -> {
+            feeRecordAdapter.markFeeAsPaid(payment.getFeeRecordId(), payment.getTrxId());
+            student.setFeeStatus(FeeRecord.STATUS_PAID);
+            setupProfileCard();
+            PaymentReceiptDialog receiptDialog = PaymentReceiptDialog.newInstance(payment);
+            receiptDialog.show(getSupportFragmentManager(), "PAYMENT_RECEIPT_DIALOG");
+        });
+        bottomSheet.show(getSupportFragmentManager(), "PAYMENT_GATEWAY_SHEET");
     }
 
     private void updateFeeEmptyState(List<FeeRecord> fees) {
@@ -834,8 +989,9 @@ public class StudentDashboardActivity extends BaseActivity {
                 student.setDining(cachedDining);
             }
             binding.tvBoarderNo.setText("Boarder No: " + cachedBoarderNo);
-            String diningText = cachedDining.endsWith("Hall") ? cachedDining : (cachedDining + " Hall");
-            binding.tvDiningHall.setText("Dining: " + diningText);
+            String cleanDining = cachedDining != null ? cachedDining.replaceAll("(?i)\\bhall\\b", "").trim() : "East";
+            if (cleanDining.isEmpty()) cleanDining = "East";
+            binding.tvDiningHall.setText("Dining: " + cleanDining);
         }
 
         String uid = currentUser.getUid();
@@ -904,13 +1060,14 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void applyBoarderAndDining(String boarderNo, String dining, SharedPreferences prefs) {
+        String cleanDining = dining != null ? dining.replaceAll("(?i)\\bhall\\b", "").trim() : "East";
+        if (cleanDining.isEmpty()) cleanDining = "East";
         if (student != null) {
             student.setBoarderNo(boarderNo);
-            student.setDining(dining);
+            student.setDining(cleanDining);
         }
         binding.tvBoarderNo.setText("Boarder No: " + boarderNo);
-        String diningText = dining.endsWith("Hall") ? dining : (dining + " Hall");
-        binding.tvDiningHall.setText("Dining: " + diningText);
-        prefs.edit().putString("boarder_no", boarderNo).putString("dining_hall", dining).apply();
+        binding.tvDiningHall.setText("Dining: " + cleanDining);
+        prefs.edit().putString("boarder_no", boarderNo).putString("dining_hall", cleanDining).apply();
     }
 }
