@@ -55,6 +55,32 @@
                         android:textColor="@color/studentColor"
                         android:layout_marginBottom="12dp" />
 
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardProfileAvatar"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginBottom="12dp"
+                        app:cardCornerRadius="40dp"
+                        app:strokeWidth="2dp"
+                        app:strokeColor="#D32F2F"
+                        app:cardElevation="2dp"
+                        app:cardPreventCornerOverlap="false"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/ivProfileAvatar"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_person"
+                            android:contentDescription="Profile Picture"
+                            android:clickable="true"
+                            android:focusable="true" />
+
+                    </com.google.android.material.card.MaterialCardView>
+
                     <TextView
                         android:id="@+id/tvStudentName"
                         android:layout_width="wrap_content"
