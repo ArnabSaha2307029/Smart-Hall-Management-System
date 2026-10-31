@@ -48,6 +48,12 @@
             android:parentActivityName=".ui.auth.LoginActivity" />
 
         <activity
+            android:name=".ui.student.MealManagementActivity"
+            android:exported="false"
+            android:label="Meal Management"
+            android:parentActivityName=".ui.student.StudentDashboardActivity" />
+
+        <activity
             android:name=".ui.student.NoticeListActivity"
             android:exported="false"
             android:label="Hall Notices"
