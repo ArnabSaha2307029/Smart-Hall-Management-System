@@ -67,6 +67,9 @@ public class StudentDashboardActivity extends BaseActivity {
     private ActivityResultLauncher<String> requestPermissionLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
     private ActivityResultLauncher<Intent> uCropLauncher;
+    private ActivityResultLauncher<Uri> cameraLauncher;
+    private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private Uri tempCameraUri;
     private NetworkChangeReceiver networkChangeReceiver;
     private Snackbar networkSnackbar;
     private boolean isPreviouslyOffline = false;
@@ -105,6 +108,26 @@ public class StudentDashboardActivity extends BaseActivity {
                         if (croppedUri != null) {
                             saveImageToInternalStorage(croppedUri);
                         }
+                    }
+                }
+        );
+
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicture(),
+                success -> {
+                    if (Boolean.TRUE.equals(success) && tempCameraUri != null) {
+                        startCrop(tempCameraUri);
+                    }
+                }
+        );
+
+        cameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (Boolean.TRUE.equals(isGranted)) {
+                        dispatchTakePictureIntent();
+                    } else {
+                        Toast.makeText(this, "Camera permission is required to take photo", Toast.LENGTH_SHORT).show();
                     }
                 }
         );
@@ -168,8 +191,8 @@ public class StudentDashboardActivity extends BaseActivity {
         setupSubmitComplaintButton();
         setupViewNoticesButton();
         loadProfileImage();
-        binding.ivProfileAvatar.setOnClickListener(v -> galleryLauncher.launch("image/*"));
-        binding.cardProfileAvatar.setOnClickListener(v -> galleryLauncher.launch("image/*"));
+        binding.ivProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
+        binding.cardProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
     }
 
     @Override
@@ -413,6 +436,38 @@ public class StudentDashboardActivity extends BaseActivity {
     private void logout() {
         FirebaseAuth.getInstance().signOut();
         navigateToLogin();
+    }
+
+    private void showImagePickerDialog() {
+        CharSequence[] options = new CharSequence[]{"Take Photo (Camera)", "Choose from Gallery"};
+        new AlertDialog.Builder(this)
+                .setTitle("Update Profile Photo")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            dispatchTakePictureIntent();
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+                        }
+                    } else if (which == 1) {
+                        galleryLauncher.launch("image/*");
+                    }
+                })
+                .show();
+    }
+
+    private void dispatchTakePictureIntent() {
+        File imageDir = new File(getCacheDir(), "camera_photos");
+        if (!imageDir.exists()) {
+            imageDir.mkdirs();
+        }
+        File tempFile = new File(imageDir, "camera_raw_" + System.currentTimeMillis() + ".jpg");
+        tempCameraUri = androidx.core.content.FileProvider.getUriForFile(
+                this,
+                getPackageName() + ".fileprovider",
+                tempFile
+        );
+        cameraLauncher.launch(tempCameraUri);
     }
 
     private void startCrop(Uri sourceUri) {
