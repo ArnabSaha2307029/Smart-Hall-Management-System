@@ -1,30 +1,41 @@
 package com.example.smarthall.ui.student;
 
+import android.Manifest;
 import android.app.AlertDialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityStudentDashboardBinding;
 import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.FeeRecord;
-import com.example.smarthall.model.Notice;
 import com.example.smarthall.model.Room;
 import com.example.smarthall.model.Student;
 import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
-import com.example.smarthall.ui.adapters.NoticeAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -38,7 +49,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private Student student;
     private FeeRecordAdapter feeRecordAdapter;
     private ComplaintAdapter complaintAdapter;
-    private NoticeAdapter noticeAdapter;
+    private ActivityResultLauncher<String> requestPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,19 +57,65 @@ public class StudentDashboardActivity extends BaseActivity {
         binding = ActivityStudentDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        Log.d("FCM", "POST_NOTIFICATIONS permission granted");
+                    } else {
+                        Log.w("FCM", "POST_NOTIFICATIONS permission denied");
+                    }
+                }
+        );
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        createNotificationChannel();
+
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_notices")
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM", "Subscribed to hall_notices topic successfully");
+                    } else {
+                        Log.e("FCM", "Topic subscription failed", task.getException());
+                    }
+                });
+
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        Log.d("FCM", "Device token: " + task.getResult());
+                    } else {
+                        Log.w("FCM", "Fetching FCM registration token failed", task.getException());
+                    }
+                });
+
         repository = HallRepository.getInstance();
 
         String studentId = getIntent().getStringExtra("EXTRA_USER_ID");
         if (studentId == null || studentId.isEmpty()) {
-            Toast.makeText(this, "Session error. Please login again.", Toast.LENGTH_LONG).show();
-            logout();
-            return;
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                studentId = "S001";
+            } else {
+                Toast.makeText(this, "Session error. Please login again.", Toast.LENGTH_LONG).show();
+                navigateToLogin();
+                return;
+            }
         }
 
         student = repository.getStudentById(studentId);
         if (student == null) {
+            student = repository.getStudentById("S001");
+        }
+        if (student == null) {
             Toast.makeText(this, "Student account not found.", Toast.LENGTH_LONG).show();
-            logout();
+            navigateToLogin();
             return;
         }
 
@@ -67,8 +124,8 @@ public class StudentDashboardActivity extends BaseActivity {
         setupSeatView();
         setupFeeRecords();
         setupComplaints();
-        setupNotices();
         setupSubmitComplaintButton();
+        setupViewNoticesButton();
     }
 
     @Override
@@ -80,8 +137,30 @@ public class StudentDashboardActivity extends BaseActivity {
             setupSeatView();
             refreshFees();
             refreshComplaints();
-            refreshNotices();
         }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    "hall_notices_channel",
+                    "Hall Announcements",
+                    NotificationManager.IMPORTANCE_HIGH);
+            channel.enableLights(true);
+            channel.enableVibration(true);
+            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) {
+                nm.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void setupViewNoticesButton() {
+        binding.btnViewNotices.setOnClickListener(v -> {
+            Intent intent = new Intent(this, NoticeListActivity.class);
+            startActivity(intent);
+        });
     }
 
     private void setupHeader() {
@@ -187,25 +266,6 @@ public class StudentDashboardActivity extends BaseActivity {
         binding.rvMyComplaints.setVisibility(complaints.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
-    private void setupNotices() {
-        List<Notice> notices = repository.getNotices();
-        noticeAdapter = new NoticeAdapter(notices);
-        binding.rvNotices.setLayoutManager(new LinearLayoutManager(this));
-        binding.rvNotices.setAdapter(noticeAdapter);
-        updateNoticeEmptyState(notices);
-    }
-
-    private void refreshNotices() {
-        List<Notice> notices = repository.getNotices();
-        noticeAdapter.updateData(notices);
-        updateNoticeEmptyState(notices);
-    }
-
-    private void updateNoticeEmptyState(List<Notice> notices) {
-        binding.tvEmptyNotices.setVisibility(notices.isEmpty() ? View.VISIBLE : View.GONE);
-        binding.rvNotices.setVisibility(notices.isEmpty() ? View.GONE : View.VISIBLE);
-    }
-
     private void setupSubmitComplaintButton() {
         binding.btnSubmitComplaint.setOnClickListener(v -> showSubmitComplaintDialog());
     }
@@ -258,10 +318,15 @@ public class StudentDashboardActivity extends BaseActivity {
         });
     }
 
-    private void logout() {
+    private void navigateToLogin() {
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void logout() {
+        FirebaseAuth.getInstance().signOut();
+        navigateToLogin();
     }
 }
