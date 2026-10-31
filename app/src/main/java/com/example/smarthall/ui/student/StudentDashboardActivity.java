@@ -49,6 +49,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -496,45 +497,51 @@ public class StudentDashboardActivity extends BaseActivity {
             if (inputStream == null) {
                 return;
             }
-            File file = new File(getFilesDir(), "profile_picture.jpg");
-            FileOutputStream outputStream = new FileOutputStream(file);
-            byte[] buffer = new byte[8192];
-            int length;
-            while ((length = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, length);
-            }
-            outputStream.flush();
-            outputStream.close();
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
             inputStream.close();
-
-            ExifInterface exif = new ExifInterface(file.getAbsolutePath());
-            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-            int rotationAngle = 0;
-            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
-                rotationAngle = 90;
-            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
-                rotationAngle = 180;
-            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
-                rotationAngle = 270;
+            if (bitmap == null) {
+                return;
             }
 
-            if (rotationAngle != 0) {
-                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
-                if (bitmap != null) {
-                    Matrix matrix = new Matrix();
-                    matrix.postRotate(rotationAngle);
-                    Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            File file = new File(getFilesDir(), "profile_picture.jpg");
+            long maxSizeBytes = 100 * 1024;
+            int quality = 95;
+            boolean saved = false;
+
+            while (quality > 15) {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+                byte[] byteArray = stream.toByteArray();
+                if (byteArray.length <= maxSizeBytes) {
                     FileOutputStream fos = new FileOutputStream(file);
-                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                    fos.write(byteArray);
                     fos.flush();
                     fos.close();
-                    if (bitmap != null && !bitmap.isRecycled()) {
-                        bitmap.recycle();
-                    }
-                    if (rotatedBitmap != null && !rotatedBitmap.isRecycled()) {
-                        rotatedBitmap.recycle();
-                    }
+                    saved = true;
+                    break;
                 }
+                quality -= 10;
+            }
+
+            Bitmap scaledBitmap = null;
+            if (!saved) {
+                int width = bitmap.getWidth();
+                int height = bitmap.getHeight();
+                scaledBitmap = Bitmap.createScaledBitmap(bitmap, (int) (width * 0.8), (int) (height * 0.8), true);
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
+                byte[] byteArray = stream.toByteArray();
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(byteArray);
+                fos.flush();
+                fos.close();
+            }
+
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
+            if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+                scaledBitmap.recycle();
             }
 
             SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
