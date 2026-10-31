@@ -147,15 +147,8 @@ public class LoginActivity extends BaseActivity {
                         startActivity(intent);
                         finish();
                     } else if ("student".equalsIgnoreCase(role)) {
-                        String studentId = document.getString("studentId");
-                        if (studentId == null || studentId.isEmpty()) {
-                            studentId = document.getString("rollNumber");
-                        }
-                        if (studentId == null || studentId.isEmpty() || repository.getStudentById(studentId) == null) {
-                            studentId = repository.getStudentById(uid) != null ? uid : "S001";
-                        }
                         Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
-                        intent.putExtra("EXTRA_USER_ID", studentId);
+                        intent.putExtra("EXTRA_USER_ID", uid);
                         intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);

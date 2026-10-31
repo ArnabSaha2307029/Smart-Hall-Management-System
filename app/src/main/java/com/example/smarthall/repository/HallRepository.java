@@ -59,25 +59,25 @@ public class HallRepository {
     private void seedStudents() {
         Student s1 = new Student("S001", "Arnab Saha", "2307029", "CSE",
                 "+8801712345678", "arnab@university.edu",
-                "101", "A", FeeRecord.STATUS_UNPAID, "pass123");
+                "101", "A", FeeRecord.STATUS_UNPAID, "pass123", "1001", "East");
         studentMap.put(s1.getId(), s1);
         roomMap.get("101").occupySeat(Room.SEAT_A, s1.getId());
 
         Student s2 = new Student("S002", "Rakib Hasan", "2307045", "EEE",
                 "+8801812345679", "rakib@university.edu",
-                "101", "B", FeeRecord.STATUS_UNPAID, "pass456");
+                "101", "B", FeeRecord.STATUS_UNPAID, "pass456", "1002", "West");
         studentMap.put(s2.getId(), s2);
         roomMap.get("101").occupySeat(Room.SEAT_B, s2.getId());
 
         Student s3 = new Student("S003", "Fatima Akter", "2307062", "ME",
                 "+8801912345680", "fatima@university.edu",
-                "102", "A", FeeRecord.STATUS_PAID, "pass789");
+                "102", "A", FeeRecord.STATUS_PAID, "pass789", "1003", "East");
         studentMap.put(s3.getId(), s3);
         roomMap.get("102").occupySeat(Room.SEAT_A, s3.getId());
 
         Student s4 = new Student("S004", "Mehedi Islam", "2307088", "CE",
                 "+8801612345681", "mehedi@university.edu",
-                "102", "C", FeeRecord.STATUS_UNPAID, "pass000");
+                "102", "C", FeeRecord.STATUS_UNPAID, "pass000", "1004", "West");
         studentMap.put(s4.getId(), s4);
         roomMap.get("102").occupySeat(Room.SEAT_C, s4.getId());
     }

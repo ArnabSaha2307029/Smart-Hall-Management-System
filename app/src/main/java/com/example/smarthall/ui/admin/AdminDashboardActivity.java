@@ -3,10 +3,15 @@ package com.example.smarthall.ui.admin;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityAdminDashboardBinding;
+import com.example.smarthall.databinding.DialogStudentDetailsBinding;
 import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.NoticeModel;
 import com.example.smarthall.model.Student;
@@ -36,10 +42,15 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AdminDashboardActivity extends BaseActivity {
 
@@ -51,6 +62,7 @@ public class AdminDashboardActivity extends BaseActivity {
     private List<NoticeModel> noticeList = new ArrayList<>();
     private DatabaseReference noticeRef;
     private ValueEventListener noticeListener;
+    private ListenerRegistration studentListener;
     private NetworkChangeReceiver networkChangeReceiver;
     private Snackbar networkSnackbar;
     private boolean isPreviouslyOffline = false;
@@ -75,6 +87,7 @@ public class AdminDashboardActivity extends BaseActivity {
         setupTabButtons();
         setupBroadcastNotice();
         setupNoticesListener();
+        setupStudentsListener();
         switchTab(TAB_STUDENTS);
     }
 
@@ -130,6 +143,9 @@ public class AdminDashboardActivity extends BaseActivity {
         if (noticeRef != null && noticeListener != null) {
             noticeRef.removeEventListener(noticeListener);
         }
+        if (studentListener != null) {
+            studentListener.remove();
+        }
     }
 
     private void setupHeader() {
@@ -139,10 +155,8 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void setupRecyclerViews() {
-        studentAdapter = new StudentAdapter(repository.getStudents(), student -> {
-            Intent intent = new Intent(this, StudentDetailActivity.class);
-            intent.putExtra("EXTRA_STUDENT_ID", student.getId());
-            startActivity(intent);
+        studentAdapter = new StudentAdapter(new ArrayList<>(), student -> {
+            showStudentDetailsDialog(student);
         });
         binding.rvStudents.setLayoutManager(new LinearLayoutManager(this));
         binding.rvStudents.setAdapter(studentAdapter);
@@ -290,11 +304,46 @@ public class AdminDashboardActivity extends BaseActivity {
         switchTab(currentTab);
     }
 
+    private void setupStudentsListener() {
+        if (studentListener != null) {
+            studentListener.remove();
+        }
+        studentListener = FirebaseFirestore.getInstance()
+                .collection("students")
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null || snapshots == null) return;
+                    Map<String, Student> uniqueStudentsMap = new LinkedHashMap<>();
+                    for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                        Student student = doc.toObject(Student.class);
+                        if (student != null) {
+                            if (TextUtils.isEmpty(student.getId())) {
+                                student.setId(doc.getId());
+                            }
+                            String roll = student.getRoll();
+                            if (!TextUtils.isEmpty(roll)) {
+                                if (uniqueStudentsMap.containsKey(roll)) {
+                                    Student existing = uniqueStudentsMap.get(roll);
+                                    if (existing != null && TextUtils.isEmpty(existing.getProfileImageBase64()) && !TextUtils.isEmpty(student.getProfileImageBase64())) {
+                                        uniqueStudentsMap.put(roll, student);
+                                    }
+                                } else {
+                                    uniqueStudentsMap.put(roll, student);
+                                }
+                            }
+                        }
+                    }
+                    List<Student> liveStudentList = new ArrayList<>(uniqueStudentsMap.values());
+                    java.util.Collections.sort(liveStudentList, (s1, s2) -> s1.getRoll().compareTo(s2.getRoll()));
+                    studentAdapter.updateData(liveStudentList);
+                    binding.tvEmptyStudents.setVisibility(liveStudentList.isEmpty() ? View.VISIBLE : View.GONE);
+                    binding.rvStudents.setVisibility(liveStudentList.isEmpty() ? View.GONE : View.VISIBLE);
+                });
+    }
+
     private void refreshStudents() {
-        List<Student> students = repository.getStudents();
-        studentAdapter.updateData(students);
-        binding.tvEmptyStudents.setVisibility(students.isEmpty() ? View.VISIBLE : View.GONE);
-        binding.rvStudents.setVisibility(students.isEmpty() ? View.GONE : View.VISIBLE);
+        if (studentListener == null) {
+            setupStudentsListener();
+        }
     }
 
     private void refreshComplaints() {
@@ -364,6 +413,114 @@ public class AdminDashboardActivity extends BaseActivity {
 
             dialog.dismiss();
         });
+    }
+
+    private void showStudentDetailsDialog(Student student) {
+        if (student == null) {
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        DialogStudentDetailsBinding dialogBinding = DialogStudentDetailsBinding.inflate(LayoutInflater.from(this));
+        builder.setView(dialogBinding.getRoot());
+
+        dialogBinding.tvDetailName.setText(student.getName());
+        String roll = !TextUtils.isEmpty(student.getRollNumber()) ? student.getRollNumber() : student.getRoll();
+        dialogBinding.tvDetailRoll.setText("Roll: " + roll);
+
+        String boarderNo = student.getBoarderNo();
+        dialogBinding.tvDetailBoarderNo.setText("Boarder No: " + (!TextUtils.isEmpty(boarderNo) ? boarderNo : "Not Assigned"));
+
+        String dining = student.getDining();
+        String diningText = TextUtils.isEmpty(dining) ? "Not Assigned" : (dining.endsWith("Hall") ? dining : dining + " Hall");
+        dialogBinding.tvDetailDining.setText("Dining: " + diningText);
+
+        String room = !TextUtils.isEmpty(student.getAllocatedRoom()) ? student.getAllocatedRoom() : student.getRoomNo();
+        String seat = student.getAllocatedSeat();
+        String roomText = (TextUtils.isEmpty(room) || room.equalsIgnoreCase("Unassigned")) ? "Unassigned" : (room + (!TextUtils.isEmpty(seat) ? " • Seat " + seat : ""));
+        dialogBinding.tvDetailRoom.setText("Room: " + roomText);
+
+        dialogBinding.tvDetailDepartment.setText("Department: " + (!TextUtils.isEmpty(student.getDepartment()) ? student.getDepartment() : "N/A"));
+        dialogBinding.tvDetailEmail.setText("Email: " + (!TextUtils.isEmpty(student.getEmail()) ? student.getEmail() : "N/A"));
+        dialogBinding.tvDetailPhone.setText("Phone: " + (!TextUtils.isEmpty(student.getPhone()) ? student.getPhone() : "N/A"));
+
+        String base64Str = student.getProfileImageBase64();
+        if (!TextUtils.isEmpty(base64Str)) {
+            try {
+                byte[] decodedBytes = Base64.decode(base64Str, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                if (bitmap != null) {
+                    dialogBinding.ivDetailAvatar.setImageBitmap(bitmap);
+                } else {
+                    dialogBinding.ivDetailAvatar.setImageResource(R.drawable.ic_person);
+                }
+            } catch (Exception e) {
+                dialogBinding.ivDetailAvatar.setImageResource(R.drawable.ic_person);
+            }
+        } else {
+            dialogBinding.ivDetailAvatar.setImageResource(R.drawable.ic_person);
+        }
+
+        if (!TextUtils.isEmpty(student.getId())) {
+            FirebaseFirestore.getInstance().collection("students").document(student.getId()).get()
+                    .addOnSuccessListener(snapshot -> {
+                        if (snapshot != null && snapshot.exists()) {
+                            String firestoreBase64 = snapshot.getString("profileImageBase64");
+                            if (!TextUtils.isEmpty(firestoreBase64)) {
+                                student.setProfileImageBase64(firestoreBase64);
+                                try {
+                                    byte[] bytes = Base64.decode(firestoreBase64, Base64.DEFAULT);
+                                    Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                                    if (bmp != null) {
+                                        dialogBinding.ivDetailAvatar.setImageBitmap(bmp);
+                                    }
+                                } catch (Exception ignored) {
+                                }
+                            }
+                            String fsBoarderNo = snapshot.getString("boarderNo");
+                            if (!TextUtils.isEmpty(fsBoarderNo)) {
+                                student.setBoarderNo(fsBoarderNo);
+                                dialogBinding.tvDetailBoarderNo.setText("Boarder No: " + fsBoarderNo);
+                            }
+                            String fsDining = snapshot.getString("dining");
+                            if (!TextUtils.isEmpty(fsDining)) {
+                                student.setDining(fsDining);
+                                String dText = fsDining.endsWith("Hall") ? fsDining : (fsDining + " Hall");
+                                dialogBinding.tvDetailDining.setText("Dining: " + dText);
+                            }
+                        }
+                    });
+        }
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        dialogBinding.btnDirectCall.setOnClickListener(v -> {
+            String phone = student.getPhone();
+            if (TextUtils.isEmpty(phone)) {
+                Toast.makeText(this, "Phone number not available", Toast.LENGTH_SHORT).show();
+            } else {
+                Intent callIntent = new Intent(Intent.ACTION_DIAL);
+                callIntent.setData(Uri.parse("tel:" + phone.trim()));
+                startActivity(callIntent);
+            }
+        });
+
+        dialogBinding.btnSendMessage.setOnClickListener(v -> {
+            Toast.makeText(this, "Messaging feature will be available soon", Toast.LENGTH_SHORT).show();
+        });
+
+        dialogBinding.btnAssignDiningManager.setOnClickListener(v -> {
+            Toast.makeText(this, "Dining Manager assignment will be available soon", Toast.LENGTH_SHORT).show();
+        });
+
+        dialogBinding.btnDismissDetail.setOnClickListener(v -> {
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void logout() {

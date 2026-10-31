@@ -1,15 +1,12 @@
 package com.example.smarthall.ui.adapters;
 
-import android.graphics.Color;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.smarthall.databinding.ItemStudentBinding;
-import com.example.smarthall.model.FeeRecord;
 import com.example.smarthall.model.Student;
 
 import java.util.ArrayList;
@@ -25,7 +22,7 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
     }
 
     public StudentAdapter(List<Student> studentList, OnStudentClickListener listener) {
-        this.studentList = studentList != null ? studentList : new ArrayList<>();
+        this.studentList = studentList != null ? new ArrayList<>(studentList) : new ArrayList<>();
         this.listener = listener;
     }
 
@@ -48,8 +45,14 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
         return studentList.size();
     }
 
-    public void updateData(List<Student> newList) {
-        this.studentList = newList != null ? newList : new ArrayList<>();
+    public void updateData(List<Student> newStudents) {
+        if (this.studentList == null) {
+            this.studentList = new ArrayList<>();
+        }
+        this.studentList.clear();
+        if (newStudents != null) {
+            this.studentList.addAll(newStudents);
+        }
         notifyDataSetChanged();
     }
 
@@ -62,34 +65,21 @@ public class StudentAdapter extends RecyclerView.Adapter<StudentAdapter.StudentV
         }
 
         void bind(Student student, OnStudentClickListener listener) {
-            binding.tvStudentName.setText(student.getName());
             binding.tvStudentRoll.setText("Roll: " + student.getRollNumber());
-            binding.tvStudentDept.setText(student.getDepartment());
+            binding.tvStudentName.setText(student.getName());
 
-            // Room/Seat badge
             if (student.isAssigned()) {
-                binding.tvRoomSeatBadge.setText("Room " + student.getAllocatedRoom() + " - Seat " + student.getAllocatedSeat());
-                binding.tvRoomSeatBadge.setBackgroundColor(Color.parseColor("#ECEFF1"));
-                binding.tvRoomSeatBadge.setTextColor(Color.parseColor("#37474F"));
+                binding.tvStudentRoom.setText("Room " + student.getAllocatedRoom() + " • Seat " + student.getAllocatedSeat());
+            } else if (student.getAllocatedRoom() != null && !student.getAllocatedRoom().isEmpty()) {
+                binding.tvStudentRoom.setText("Room " + student.getAllocatedRoom());
             } else {
-                binding.tvRoomSeatBadge.setText("Unassigned");
-                binding.tvRoomSeatBadge.setBackgroundColor(Color.parseColor("#F5F5F5"));
-                binding.tvRoomSeatBadge.setTextColor(Color.parseColor("#9E9E9E"));
+                binding.tvStudentRoom.setText("Room: Unassigned");
             }
 
-            // Fee status badge
-            if (FeeRecord.STATUS_PAID.equals(student.getFeeStatus())) {
-                binding.tvFeeStatusBadge.setText("PAID");
-                binding.tvFeeStatusBadge.setBackgroundColor(Color.parseColor("#E8F5E9"));
-                binding.tvFeeStatusBadge.setTextColor(Color.parseColor("#2E7D32"));
-            } else {
-                binding.tvFeeStatusBadge.setText("UNPAID");
-                binding.tvFeeStatusBadge.setBackgroundColor(Color.parseColor("#FFEBEE"));
-                binding.tvFeeStatusBadge.setTextColor(Color.parseColor("#C62828"));
-            }
-
-            binding.getRoot().setOnClickListener(v -> {
-                if (listener != null) listener.onStudentClick(student);
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onStudentClick(student);
+                }
             });
         }
     }
