@@ -4,11 +4,18 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -42,6 +49,9 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -55,6 +65,11 @@ public class StudentDashboardActivity extends BaseActivity {
     private FeeRecordAdapter feeRecordAdapter;
     private ComplaintAdapter complaintAdapter;
     private ActivityResultLauncher<String> requestPermissionLauncher;
+    private ActivityResultLauncher<String> galleryLauncher;
+    private ActivityResultLauncher<Intent> uCropLauncher;
+    private ActivityResultLauncher<Uri> cameraLauncher;
+    private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private Uri tempCameraUri;
     private NetworkChangeReceiver networkChangeReceiver;
     private Snackbar networkSnackbar;
     private boolean isPreviouslyOffline = false;
@@ -72,6 +87,47 @@ public class StudentDashboardActivity extends BaseActivity {
                         Log.d("FCM", "POST_NOTIFICATIONS permission granted");
                     } else {
                         Log.w("FCM", "POST_NOTIFICATIONS permission denied");
+                    }
+                }
+        );
+
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        startCrop(uri);
+                    }
+                }
+        );
+
+        uCropLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Uri croppedUri = com.yalantis.ucrop.UCrop.getOutput(result.getData());
+                        if (croppedUri != null) {
+                            saveImageToInternalStorage(croppedUri);
+                        }
+                    }
+                }
+        );
+
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicture(),
+                success -> {
+                    if (Boolean.TRUE.equals(success) && tempCameraUri != null) {
+                        startCrop(tempCameraUri);
+                    }
+                }
+        );
+
+        cameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (Boolean.TRUE.equals(isGranted)) {
+                        dispatchTakePictureIntent();
+                    } else {
+                        Toast.makeText(this, "Camera permission is required to take photo", Toast.LENGTH_SHORT).show();
                     }
                 }
         );
@@ -134,6 +190,9 @@ public class StudentDashboardActivity extends BaseActivity {
         setupComplaints();
         setupSubmitComplaintButton();
         setupViewNoticesButton();
+        loadProfileImage();
+        binding.ivProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
+        binding.cardProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
     }
 
     @Override
@@ -145,6 +204,7 @@ public class StudentDashboardActivity extends BaseActivity {
             setupSeatView();
             refreshFees();
             refreshComplaints();
+            loadProfileImage();
         }
     }
 
@@ -376,5 +436,130 @@ public class StudentDashboardActivity extends BaseActivity {
     private void logout() {
         FirebaseAuth.getInstance().signOut();
         navigateToLogin();
+    }
+
+    private void showImagePickerDialog() {
+        CharSequence[] options = new CharSequence[]{"Take Photo (Camera)", "Choose from Gallery"};
+        new AlertDialog.Builder(this)
+                .setTitle("Update Profile Photo")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            dispatchTakePictureIntent();
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+                        }
+                    } else if (which == 1) {
+                        galleryLauncher.launch("image/*");
+                    }
+                })
+                .show();
+    }
+
+    private void dispatchTakePictureIntent() {
+        File imageDir = new File(getCacheDir(), "camera_photos");
+        if (!imageDir.exists()) {
+            imageDir.mkdirs();
+        }
+        File tempFile = new File(imageDir, "camera_raw_" + System.currentTimeMillis() + ".jpg");
+        tempCameraUri = androidx.core.content.FileProvider.getUriForFile(
+                this,
+                getPackageName() + ".fileprovider",
+                tempFile
+        );
+        cameraLauncher.launch(tempCameraUri);
+    }
+
+    private void startCrop(Uri sourceUri) {
+        File destinationFile = new File(getCacheDir(), "cropped_profile_" + System.currentTimeMillis() + ".jpg");
+        Uri destinationUri = Uri.fromFile(destinationFile);
+        com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
+        options.setCircleDimmedLayer(true);
+        options.setShowCropGrid(false);
+        options.setCompressionQuality(90);
+        options.setToolbarColor(android.graphics.Color.parseColor("#D32F2F"));
+        options.setStatusBarColor(android.graphics.Color.parseColor("#B71C1C"));
+        options.setToolbarWidgetColor(android.graphics.Color.WHITE);
+        options.setActiveControlsWidgetColor(android.graphics.Color.parseColor("#D32F2F"));
+        options.setToolbarTitle("Crop Profile Photo");
+        Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destinationUri)
+                .withAspectRatio(1, 1)
+                .withMaxResultSize(500, 500)
+                .withOptions(options)
+                .getIntent(this);
+        uCropLauncher.launch(cropIntent);
+    }
+
+    private void saveImageToInternalStorage(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null) {
+                return;
+            }
+            File file = new File(getFilesDir(), "profile_picture.jpg");
+            FileOutputStream outputStream = new FileOutputStream(file);
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, length);
+            }
+            outputStream.flush();
+            outputStream.close();
+            inputStream.close();
+
+            ExifInterface exif = new ExifInterface(file.getAbsolutePath());
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+            int rotationAngle = 0;
+            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
+                rotationAngle = 90;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
+                rotationAngle = 180;
+            } else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
+                rotationAngle = 270;
+            }
+
+            if (rotationAngle != 0) {
+                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                if (bitmap != null) {
+                    Matrix matrix = new Matrix();
+                    matrix.postRotate(rotationAngle);
+                    Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                    FileOutputStream fos = new FileOutputStream(file);
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                    fos.flush();
+                    fos.close();
+                    if (bitmap != null && !bitmap.isRecycled()) {
+                        bitmap.recycle();
+                    }
+                    if (rotatedBitmap != null && !rotatedBitmap.isRecycled()) {
+                        rotatedBitmap.recycle();
+                    }
+                }
+            }
+
+            SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
+            prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
+
+            loadProfileImage();
+        } catch (Exception e) {
+            Log.e("StudentDashboard", "Failed to save profile image", e);
+            Toast.makeText(this, "Failed to save profile picture", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void loadProfileImage() {
+        SharedPreferences prefs = getSharedPreferences("student_prefs", Context.MODE_PRIVATE);
+        String path = prefs.getString("profile_image_path", null);
+        if (path != null) {
+            File file = new File(path);
+            if (file.exists()) {
+                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+                if (bitmap != null) {
+                    binding.ivProfileAvatar.setImageBitmap(bitmap);
+                    return;
+                }
+            }
+        }
+        binding.ivProfileAvatar.setImageResource(R.drawable.ic_person);
     }
 }
