@@ -36,6 +36,12 @@
             android:parentActivityName=".ui.auth.LoginActivity" />
 
         <activity
+            android:name=".ui.admin.RoomManagementActivity"
+            android:exported="false"
+            android:label="Room Allocation"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
+
+        <activity
             android:name=".ui.admin.StudentDetailActivity"
             android:exported="false"
             android:label="Student Detail"
