@@ -90,7 +90,7 @@
                 android:layout_height="32dp"
                 android:text="Resolve"
                 android:textSize="11sp"
-                android:backgroundTint="@color/colorPrimary"
+                android:backgroundTint="?attr/colorPrimary"
                 android:visibility="gone" />
 
         </LinearLayout>

@@ -100,15 +100,21 @@ public class FeeRecordAdapter extends RecyclerView.Adapter<FeeRecordAdapter.FeeV
             binding.tvFeeAmount.setText(String.format(Locale.US, "৳ %.0f BDT", fee.getAmount()));
             binding.tvFeeDueDate.setText("Due: " + (fee.getDueDate() != null ? fee.getDueDate() : "N/A"));
 
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            int colorPrimary = 0xFFC62828;
+            if (itemView.getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+                colorPrimary = typedValue.data;
+            }
+
             if (fee.isPaid()) {
                 binding.tvFeeStatus.setText("PAID");
                 binding.tvFeeStatus.setBackgroundResource(R.drawable.bg_badge_paid);
-                binding.tvFeeStatus.setTextColor(Color.parseColor("#B71C1C"));
+                binding.tvFeeStatus.setTextColor(colorPrimary);
                 binding.btnPayNow.setVisibility(View.GONE);
             } else {
                 binding.tvFeeStatus.setText("UNPAID");
                 binding.tvFeeStatus.setBackgroundResource(R.drawable.bg_badge_unpaid);
-                binding.tvFeeStatus.setTextColor(Color.parseColor("#D32F2F"));
+                binding.tvFeeStatus.setTextColor(colorPrimary);
                 if (!showToggle && payClickListener != null) {
                     binding.btnPayNow.setVisibility(View.VISIBLE);
                     binding.btnPayNow.setOnClickListener(v -> payClickListener.onPayClick(fee));

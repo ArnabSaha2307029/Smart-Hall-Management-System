@@ -1,17 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.SmartHall" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
-        <item name="colorOnPrimary">@color/colorOnPrimary</item>
-        <item name="colorSecondary">@color/colorSecondary</item>
-        <item name="colorSecondaryVariant">@color/colorSecondaryVariant</item>
-        <item name="colorOnSecondary">@color/colorOnSecondary</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:statusBarColor" tools:targetApi="l">@color/colorPrimaryDark</item>
+
+    <style name="Theme.SmartHall.Crimson" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/theme_crimson_primary</item>
+        <item name="colorPrimaryVariant">#B71C1C</item>
+        <item name="colorOnPrimary">@color/theme_crimson_on_primary</item>
+        <item name="colorPrimaryContainer">@color/theme_crimson_primary_container</item>
+        <item name="android:colorBackground">@color/theme_crimson_background</item>
+        <item name="colorSurface">@color/theme_crimson_surface</item>
+        <item name="colorOnSurface">@color/theme_crimson_on_surface</item>
+        <item name="colorSecondary">@color/theme_crimson_secondary</item>
+        <item name="colorSecondaryVariant">#263238</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorAccent">@color/theme_crimson_primary</item>
+        <item name="android:statusBarColor" tools:targetApi="l">#B71C1C</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
-        <item name="android:colorBackground">@color/colorBackground</item>
     </style>
+
+    <style name="Theme.SmartHall.SlateNavy" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/theme_navy_primary</item>
+        <item name="colorPrimaryVariant">#172554</item>
+        <item name="colorOnPrimary">@color/theme_navy_on_primary</item>
+        <item name="colorPrimaryContainer">#DBEAFE</item>
+        <item name="colorSecondary">@color/theme_navy_secondary</item>
+        <item name="colorSecondaryVariant">#2563EB</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">@color/theme_navy_background</item>
+        <item name="colorSurface">@color/theme_navy_surface</item>
+        <item name="colorOnSurface">@color/theme_navy_on_surface</item>
+        <item name="colorAccent">@color/theme_navy_secondary</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/theme_navy_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.SmartHall.ForestSage" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/theme_forest_primary</item>
+        <item name="colorPrimaryVariant">#0E3A13</item>
+        <item name="colorOnPrimary">@color/theme_forest_on_primary</item>
+        <item name="colorPrimaryContainer">#E8F5E9</item>
+        <item name="colorSecondary">@color/theme_forest_secondary</item>
+        <item name="colorSecondaryVariant">#388E3C</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">@color/theme_forest_background</item>
+        <item name="colorSurface">@color/theme_forest_surface</item>
+        <item name="colorOnSurface">@color/theme_forest_on_surface</item>
+        <item name="colorAccent">@color/theme_forest_secondary</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/theme_forest_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.SmartHall.ModernIndigo" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/theme_indigo_primary</item>
+        <item name="colorPrimaryVariant">#3730A3</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#EEF2FF</item>
+        <item name="colorSecondary">@color/theme_indigo_secondary</item>
+        <item name="colorSecondaryVariant">#D97706</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">@color/theme_indigo_background</item>
+        <item name="colorSurface">@color/theme_indigo_surface</item>
+        <item name="colorOnSurface">@color/theme_indigo_on_surface</item>
+        <item name="colorAccent">@color/theme_indigo_secondary</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/theme_indigo_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.SmartHall.CharcoalWhite" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/theme_charcoal_primary</item>
+        <item name="colorPrimaryVariant">#09090B</item>
+        <item name="colorOnPrimary">@color/theme_charcoal_on_primary</item>
+        <item name="colorPrimaryContainer">#F4F4F5</item>
+        <item name="colorSecondary">@color/theme_charcoal_secondary</item>
+        <item name="colorSecondaryVariant">#52525B</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:colorBackground">@color/theme_charcoal_background</item>
+        <item name="colorSurface">@color/theme_charcoal_surface</item>
+        <item name="colorOnSurface">@color/theme_charcoal_on_surface</item>
+        <item name="colorError">@color/theme_charcoal_error</item>
+        <item name="colorAccent">@color/theme_charcoal_secondary</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/theme_charcoal_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.SmartHall" parent="Theme.SmartHall.Crimson" />
 
     <style name="BadgeStyle">
         <item name="android:padding">4dp</item>
@@ -22,4 +93,5 @@
         <item name="android:textStyle">bold</item>
         <item name="android:gravity">center</item>
     </style>
+
 </resources>

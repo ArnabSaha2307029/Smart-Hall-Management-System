@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -35,11 +36,11 @@ public class RoomSeatView extends View {
     private Paint titlePaint;
     private Paint legendRectPaint;
 
-    private int colorAvailable = Color.parseColor("#FFCDD2");
-    private int colorOccupied = Color.parseColor("#5C0000");
-    private int colorMySeat = Color.parseColor("#B71C1C");
-    private int colorSelected = Color.parseColor("#D32F2F");
-    private int colorBorder = Color.parseColor("#D32F2F");
+    private int colorAvailable;
+    private int colorOccupied;
+    private int colorMySeat;
+    private int colorSelected;
+    private int colorBorder;
     private int colorLabel = Color.WHITE;
     private int colorBackground = Color.parseColor("#FAFAFA");
 
@@ -80,6 +81,29 @@ public class RoomSeatView extends View {
         titleHeight = 40f * density;
         cornerRadius = 10f * density;
         roomTitleTextSize = 14f * density;
+
+        TypedValue typedValue = new TypedValue();
+        int primaryColor = 0xFFC62828;
+        if (context.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+            primaryColor = typedValue.data;
+        }
+
+        int containerColor = 0xFFFFCDD2;
+        if (context.getTheme().resolveAttribute(com.google.android.material.R.attr.colorPrimaryContainer, typedValue, true)) {
+            containerColor = typedValue.data;
+        } else {
+            containerColor = Color.argb(60, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor));
+        }
+
+        colorMySeat = primaryColor;
+        colorSelected = primaryColor;
+        colorBorder = primaryColor;
+        colorAvailable = containerColor;
+
+        float[] hsv = new float[3];
+        Color.colorToHSV(primaryColor, hsv);
+        hsv[2] = Math.max(0.15f, hsv[2] * 0.45f);
+        colorOccupied = Color.HSVToColor(hsv);
 
         if (attrs != null) {
             try {
@@ -128,7 +152,7 @@ public class RoomSeatView extends View {
         legendPaint.setTextAlign(Paint.Align.LEFT);
 
         titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        titlePaint.setColor(Color.parseColor("#B71C1C"));
+        titlePaint.setColor(colorMySeat);
         titlePaint.setTextSize(roomTitleTextSize * 1.0f);
         titlePaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         titlePaint.setTextAlign(Paint.Align.CENTER);
@@ -189,8 +213,8 @@ public class RoomSeatView extends View {
             canvas.drawRoundRect(seatRects[i], cornerRadius, cornerRadius, borderPaint);
 
             if (state == STATE_AVAILABLE && (i != selectedSeatIndex || !interactiveMode)) {
-                labelPaint.setColor(Color.parseColor("#B71C1C"));
-                occupantPaint.setColor(Color.parseColor("#B71C1C"));
+                labelPaint.setColor(colorMySeat);
+                occupantPaint.setColor(colorMySeat);
             } else {
                 labelPaint.setColor(Color.WHITE);
                 occupantPaint.setColor(Color.WHITE);

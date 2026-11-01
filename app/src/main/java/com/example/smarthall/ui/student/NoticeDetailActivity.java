@@ -5,10 +5,10 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.example.smarthall.databinding.ActivityNoticeDetailBinding;
 import com.example.smarthall.model.NoticeModel;
+import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -18,12 +18,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class NoticeDetailActivity extends AppCompatActivity {
+public class NoticeDetailActivity extends BaseActivity {
 
     private ActivityNoticeDetailBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityNoticeDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

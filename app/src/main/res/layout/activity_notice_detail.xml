@@ -10,7 +10,7 @@
         android:id="@+id/toolbarNoticeDetail"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/colorPrimary"
+        android:background="?attr/colorPrimary"
         android:elevation="4dp"
         android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar" />
 
@@ -31,7 +31,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="3dp"
                 app:cardBackgroundColor="@color/cardBackground"
-                app:strokeColor="@color/colorPrimary"
+                app:strokeColor="?attr/colorPrimary"
                 app:strokeWidth="1dp">
 
                 <LinearLayout

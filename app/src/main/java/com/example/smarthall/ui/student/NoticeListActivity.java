@@ -4,12 +4,13 @@ import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.databinding.ActivityNoticeListBinding;
 import com.example.smarthall.model.NoticeModel;
 import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
+import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -20,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class NoticeListActivity extends AppCompatActivity {
+public class NoticeListActivity extends BaseActivity {
 
     private ActivityNoticeListBinding binding;
     private FirebaseNoticeAdapter adapter;
@@ -29,6 +30,7 @@ public class NoticeListActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityNoticeListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

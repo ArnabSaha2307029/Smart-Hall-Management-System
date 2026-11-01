@@ -49,4 +49,40 @@
     <color name="logoutButton">#8E0000</color>
     <color name="demoAdminBtn">#B71C1C</color>
     <color name="demoStudentBtn">#D32F2F</color>
+
+    <color name="theme_crimson_primary">#C62828</color>
+    <color name="theme_crimson_on_primary">#FFFFFF</color>
+    <color name="theme_crimson_primary_container">#FFEBEE</color>
+    <color name="theme_crimson_background">#FAFAFA</color>
+    <color name="theme_crimson_surface">#FFFFFF</color>
+    <color name="theme_crimson_on_surface">#212121</color>
+    <color name="theme_crimson_secondary">#37474F</color>
+
+    <color name="theme_navy_primary">#1E3A8A</color>
+    <color name="theme_navy_on_primary">#FFFFFF</color>
+    <color name="theme_navy_secondary">#3B82F6</color>
+    <color name="theme_navy_background">#F8FAFC</color>
+    <color name="theme_navy_surface">#FFFFFF</color>
+    <color name="theme_navy_on_surface">#0F172A</color>
+
+    <color name="theme_forest_primary">#1B5E20</color>
+    <color name="theme_forest_on_primary">#FFFFFF</color>
+    <color name="theme_forest_secondary">#4CAF50</color>
+    <color name="theme_forest_background">#F4F8F4</color>
+    <color name="theme_forest_surface">#FFFFFF</color>
+    <color name="theme_forest_on_surface">#1C281F</color>
+
+    <color name="theme_indigo_primary">#4F46E5</color>
+    <color name="theme_indigo_secondary">#F59E0B</color>
+    <color name="theme_indigo_background">#F9FAFB</color>
+    <color name="theme_indigo_surface">#FFFFFF</color>
+    <color name="theme_indigo_on_surface">#111827</color>
+
+    <color name="theme_charcoal_primary">#18181B</color>
+    <color name="theme_charcoal_on_primary">#FAFAFA</color>
+    <color name="theme_charcoal_secondary">#71717A</color>
+    <color name="theme_charcoal_background">#FFFFFF</color>
+    <color name="theme_charcoal_surface">#F4F4F5</color>
+    <color name="theme_charcoal_on_surface">#09090B</color>
+    <color name="theme_charcoal_error">#EF4444</color>
 </resources>

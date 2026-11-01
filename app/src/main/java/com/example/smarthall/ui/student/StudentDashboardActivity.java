@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -49,6 +50,8 @@ import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
+import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -94,6 +97,7 @@ public class StudentDashboardActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityStudentDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -237,13 +241,15 @@ public class StudentDashboardActivity extends BaseActivity {
     protected void onStart() {
         super.onStart();
         networkChangeReceiver = new NetworkChangeReceiver(isConnected -> {
+            int primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
+            int primaryVariant = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, 0xFF801313);
             if (!isConnected) {
                 isPreviouslyOffline = true;
                 if (networkSnackbar != null && networkSnackbar.isShown()) {
                     networkSnackbar.dismiss();
                 }
                 networkSnackbar = Snackbar.make(binding.getRoot(), "No Internet Connection. Offline mode.", Snackbar.LENGTH_INDEFINITE);
-                networkSnackbar.getView().setBackgroundColor(Color.parseColor("#B71C1C"));
+                networkSnackbar.getView().setBackgroundColor(primaryVariant);
                 ((android.widget.TextView) networkSnackbar.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
                 networkSnackbar.show();
             } else {
@@ -252,7 +258,7 @@ public class StudentDashboardActivity extends BaseActivity {
                 }
                 if (isPreviouslyOffline) {
                     Snackbar onlineSnack = Snackbar.make(binding.getRoot(), "Back online", Snackbar.LENGTH_SHORT);
-                    onlineSnack.getView().setBackgroundColor(Color.parseColor("#D32F2F"));
+                    onlineSnack.getView().setBackgroundColor(primaryColor);
                     ((android.widget.TextView) onlineSnack.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
                     onlineSnack.show();
                     isPreviouslyOffline = false;
@@ -370,6 +376,10 @@ public class StudentDashboardActivity extends BaseActivity {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             binding.scrollViewContent.smoothScrollTo(0, binding.cardFeeRecords.getTop());
         });
+        binding.btnNavAppTheme.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            ThemeSelectorBottomSheet.newInstance().show(getSupportFragmentManager(), ThemeSelectorBottomSheet.TAG);
+        });
         binding.btnNavLogout.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             logout();
@@ -406,12 +416,13 @@ public class StudentDashboardActivity extends BaseActivity {
             binding.tvRoomSeatInfo.setText("Room: Not Assigned");
         }
 
+        int statusTextColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
         if (FeeRecord.STATUS_PAID.equals(student.getFeeStatus())) {
             binding.tvFeeStatusCard.setText("Fee Status: PAID");
-            binding.tvFeeStatusCard.setTextColor(getResources().getColor(R.color.statusPaid, null));
+            binding.tvFeeStatusCard.setTextColor(statusTextColor);
         } else {
             binding.tvFeeStatusCard.setText("Fee Status: UNPAID");
-            binding.tvFeeStatusCard.setTextColor(getResources().getColor(R.color.statusUnpaid, null));
+            binding.tvFeeStatusCard.setTextColor(statusTextColor);
         }
 
         if (!TextUtils.isEmpty(student.getBoarderNo())) {
@@ -878,14 +889,16 @@ public class StudentDashboardActivity extends BaseActivity {
         String uid = currentUser != null ? currentUser.getUid() : "user";
         File destinationFile = new File(getCacheDir(), "cropped_profile_" + uid + "_" + System.currentTimeMillis() + ".jpg");
         Uri destinationUri = Uri.fromFile(destinationFile);
+        int primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
+        int primaryVariant = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, 0xFF801313);
         com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
         options.setCircleDimmedLayer(true);
         options.setShowCropGrid(false);
         options.setCompressionQuality(90);
-        options.setToolbarColor(android.graphics.Color.parseColor("#D32F2F"));
-        options.setStatusBarColor(android.graphics.Color.parseColor("#B71C1C"));
+        options.setToolbarColor(primaryColor);
+        options.setStatusBarColor(primaryVariant);
         options.setToolbarWidgetColor(android.graphics.Color.WHITE);
-        options.setActiveControlsWidgetColor(android.graphics.Color.parseColor("#D32F2F"));
+        options.setActiveControlsWidgetColor(primaryColor);
         options.setToolbarTitle("Crop Profile Photo");
         Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destinationUri)
                 .withAspectRatio(1, 1)

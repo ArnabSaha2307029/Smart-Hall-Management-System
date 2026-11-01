@@ -10,7 +10,7 @@
         android:id="@+id/toolbarUnpaidBill"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/colorPrimary"
+        android:background="?attr/colorPrimary"
         app:title="Unpaid Bill"
         app:titleTextColor="@color/white"
         app:navigationIcon="@drawable/ic_chevron_left"
@@ -35,7 +35,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#FFCDD2"
+                app:strokeColor="?attr/colorPrimaryContainer"
                 app:cardBackgroundColor="@color/white">
 
                 <LinearLayout
@@ -48,7 +48,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Billing Date"
-                        android:textColor="@color/colorPrimary"
+                        android:textColor="?attr/colorPrimary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -86,7 +86,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Change Date"
-                            android:textColor="@color/colorPrimary"
+                            android:textColor="?attr/colorPrimary"
                             android:textSize="13sp"
                             android:textStyle="bold" />
 
@@ -103,7 +103,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#FFCDD2"
+                app:strokeColor="?attr/colorPrimaryContainer"
                 app:cardBackgroundColor="@color/white">
 
                 <LinearLayout
@@ -116,7 +116,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Itemized Dues Breakdown"
-                        android:textColor="@color/colorPrimary"
+                        android:textColor="?attr/colorPrimary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -131,7 +131,7 @@
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#FFCDD2"
+                        android:background="?attr/colorPrimaryContainer"
                         android:layout_marginTop="12dp"
                         android:layout_marginBottom="12dp" />
 
@@ -140,7 +140,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:indeterminateTint="@color/colorPrimary"
+                        android:indeterminateTint="?attr/colorPrimary"
                         android:layout_marginTop="16dp"
                         android:layout_marginBottom="16dp"
                         android:visibility="gone" />
@@ -267,7 +267,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="Net Payable:"
-                                android:textColor="@color/colorPrimary"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="15sp"
                                 android:textStyle="bold" />
 
@@ -276,7 +276,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Unpaid Bill: 0 BDT"
-                                android:textColor="@color/colorPrimary"
+                                android:textColor="?attr/colorPrimary"
                                 android:textSize="16sp"
                                 android:textStyle="bold" />
 
@@ -296,7 +296,7 @@
                 android:textColor="@color/white"
                 android:textStyle="bold"
                 android:textSize="15sp"
-                app:backgroundTint="@color/colorAccent"
+                app:backgroundTint="?attr/colorPrimary"
                 app:cornerRadius="8dp" />
 
             <com.google.android.material.card.MaterialCardView
@@ -308,7 +308,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#FFCDD2"
+                app:strokeColor="?attr/colorPrimaryContainer"
                 app:cardBackgroundColor="@color/white">
 
                 <LinearLayout
@@ -321,7 +321,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Previous Payments"
-                        android:textColor="#B71C1C"
+                        android:textColor="?attr/colorPrimary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
@@ -336,7 +336,7 @@
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#FFCDD2"
+                        android:background="?attr/colorPrimaryContainer"
                         android:layout_marginTop="12dp"
                         android:layout_marginBottom="12dp" />
 

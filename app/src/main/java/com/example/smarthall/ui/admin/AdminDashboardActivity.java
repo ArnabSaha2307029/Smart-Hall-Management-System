@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -37,9 +38,11 @@ import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.MealCutoffUtil;
 import com.example.smarthall.util.RoomAllocationManager;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
@@ -86,6 +89,7 @@ public class AdminDashboardActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityAdminDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -115,13 +119,15 @@ public class AdminDashboardActivity extends BaseActivity {
     protected void onStart() {
         super.onStart();
         networkChangeReceiver = new NetworkChangeReceiver(isConnected -> {
+            int primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
+            int primaryVariant = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, 0xFF801313);
             if (!isConnected) {
                 isPreviouslyOffline = true;
                 if (networkSnackbar != null && networkSnackbar.isShown()) {
                     networkSnackbar.dismiss();
                 }
                 networkSnackbar = Snackbar.make(binding.getRoot(), "No Internet Connection. Offline mode.", Snackbar.LENGTH_INDEFINITE);
-                networkSnackbar.getView().setBackgroundColor(Color.parseColor("#B71C1C"));
+                networkSnackbar.getView().setBackgroundColor(primaryVariant);
                 ((android.widget.TextView) networkSnackbar.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
                 networkSnackbar.show();
             } else {
@@ -130,7 +136,7 @@ public class AdminDashboardActivity extends BaseActivity {
                 }
                 if (isPreviouslyOffline) {
                     Snackbar onlineSnack = Snackbar.make(binding.getRoot(), "Back online", Snackbar.LENGTH_SHORT);
-                    onlineSnack.getView().setBackgroundColor(Color.parseColor("#D32F2F"));
+                    onlineSnack.getView().setBackgroundColor(primaryColor);
                     ((android.widget.TextView) onlineSnack.getView().findViewById(com.google.android.material.R.id.snackbar_text)).setTextColor(Color.WHITE);
                     onlineSnack.show();
                     isPreviouslyOffline = false;
@@ -193,6 +199,10 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.btnNavComplaints.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             switchTab(TAB_COMPLAINTS);
+        });
+        binding.btnNavAppTheme.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            ThemeSelectorBottomSheet.newInstance().show(getSupportFragmentManager(), ThemeSelectorBottomSheet.TAG);
         });
         binding.btnNavAdminLogout.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -322,9 +332,13 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.panelComplaints.setVisibility(View.GONE);
         binding.panelNotices.setVisibility(View.GONE);
 
+        TypedValue typedValue = new TypedValue();
+        int active = 0xFFB71C1C;
+        if (getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+            active = typedValue.data;
+        }
         int inactive = getResources().getColor(R.color.white, null);
-        int active = getResources().getColor(R.color.colorPrimary, null);
-        int inactiveText = getResources().getColor(R.color.colorPrimary, null);
+        int inactiveText = active;
         int activeText = getResources().getColor(R.color.white, null);
 
         binding.btnTabStudents.setBackgroundColor(inactive);

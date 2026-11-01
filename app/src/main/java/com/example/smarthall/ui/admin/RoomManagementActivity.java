@@ -25,6 +25,7 @@ import com.example.smarthall.ui.adapters.RoomCardAdapter;
 import com.example.smarthall.ui.adapters.UnallocatedStudentAdapter;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.RoomAllocationManager;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -50,6 +51,7 @@ public class RoomManagementActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityRoomManagementBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -236,13 +238,19 @@ public class RoomManagementActivity extends BaseActivity {
                              android.widget.TextView tvName, android.widget.TextView tvRoll,
                              com.google.android.material.button.MaterialButton btnAction,
                              Room room) {
+        int colorPrimary = 0xFFC62828;
+        android.util.TypedValue typedValue = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+            colorPrimary = typedValue.data;
+        }
+
         if (occupant == null) {
             tvName.setText("Available");
-            tvName.setTextColor(Color.parseColor("#B71C1C"));
+            tvName.setTextColor(colorPrimary);
             tvRoll.setText("Tap to assign student");
 
             btnAction.setText("Assign");
-            btnAction.setBackgroundColor(Color.parseColor("#B71C1C"));
+            btnAction.setBackgroundColor(colorPrimary);
             btnAction.setTextColor(Color.WHITE);
             btnAction.setStrokeColor(null);
             btnAction.setStrokeWidth(0);
@@ -255,8 +263,8 @@ public class RoomManagementActivity extends BaseActivity {
 
             btnAction.setText("Vacate");
             btnAction.setBackgroundColor(Color.WHITE);
-            btnAction.setTextColor(Color.parseColor("#D32F2F"));
-            btnAction.setStrokeColor(android.content.res.ColorStateList.valueOf(Color.parseColor("#D32F2F")));
+            btnAction.setTextColor(colorPrimary);
+            btnAction.setStrokeColor(android.content.res.ColorStateList.valueOf(colorPrimary));
             btnAction.setStrokeWidth((int) (1 * getResources().getDisplayMetrics().density));
 
             btnAction.setOnClickListener(v -> confirmVacateSeat(room.getRoomId(), seatKey, occupant));

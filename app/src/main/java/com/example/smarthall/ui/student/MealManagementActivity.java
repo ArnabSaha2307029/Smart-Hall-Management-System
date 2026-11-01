@@ -15,7 +15,9 @@ import com.example.smarthall.databinding.ActivityMealManagementBinding;
 import com.example.smarthall.model.CalendarDay;
 import com.example.smarthall.ui.adapters.CalendarDayAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
+import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.MealCutoffUtil;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.android.material.datepicker.CalendarConstraints;
 import com.google.android.material.datepicker.DateValidatorPointForward;
 import com.google.android.material.datepicker.MaterialDatePicker;
@@ -37,7 +39,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
-public class MealManagementActivity extends AppCompatActivity {
+public class MealManagementActivity extends BaseActivity {
 
     private ActivityMealManagementBinding binding;
     private FirebaseFirestore db;
@@ -54,6 +56,7 @@ public class MealManagementActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityMealManagementBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

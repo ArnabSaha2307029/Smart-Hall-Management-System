@@ -15,7 +15,9 @@ import com.example.smarthall.model.FeeRecord;
 import com.example.smarthall.model.PaymentRecord;
 import com.example.smarthall.model.Student;
 import com.example.smarthall.ui.adapters.PaymentHistoryAdapter;
+import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.BillingEngine;
+import com.example.smarthall.util.ThemeHelper;
 import com.example.smarthall.util.MealCutoffUtil;
 import com.example.smarthall.util.PdfReceiptGenerator;
 import com.google.android.material.datepicker.CalendarConstraints;
@@ -33,7 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
-public class UnpaidBillActivity extends AppCompatActivity {
+public class UnpaidBillActivity extends BaseActivity {
 
     private ActivityUnpaidBillBinding binding;
     private Calendar selectedDate;
@@ -46,6 +48,7 @@ public class UnpaidBillActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityUnpaidBillBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

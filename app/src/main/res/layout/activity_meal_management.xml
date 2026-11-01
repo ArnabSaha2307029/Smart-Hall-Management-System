@@ -19,8 +19,8 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
-            app:cardBackgroundColor="#FFF8F8">
+            app:strokeColor="?attr/colorPrimary"
+            app:cardBackgroundColor="?attr/colorPrimaryContainer">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -33,7 +33,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="You can off/ on your meal from or later date of --/--/----"
-                    android:textColor="#B71C1C"
+                    android:textColor="?attr/colorPrimary"
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
@@ -57,7 +57,7 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
+            app:strokeColor="?attr/colorPrimaryContainer"
             app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
@@ -70,7 +70,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Update Meal Status"
-                    android:textColor="#B71C1C"
+                    android:textColor="?attr/colorPrimary"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="12dp" />
@@ -88,8 +88,8 @@
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
                         android:hint="From Date"
-                        app:boxStrokeColor="#D32F2F"
-                        app:hintTextColor="#B71C1C">
+                        app:boxStrokeColor="?attr/colorPrimary"
+                        app:hintTextColor="?attr/colorPrimary">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etFromDate"
@@ -109,8 +109,8 @@
                         android:layout_weight="1"
                         android:layout_marginStart="6dp"
                         android:hint="To Date"
-                        app:boxStrokeColor="#D32F2F"
-                        app:hintTextColor="#B71C1C">
+                        app:boxStrokeColor="?attr/colorPrimary"
+                        app:hintTextColor="?attr/colorPrimary">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etToDate"
@@ -139,8 +139,8 @@
                         android:text="Meal ON"
                         android:textSize="14sp"
                         android:textStyle="bold"
-                        android:textColor="#D32F2F"
-                        app:buttonTint="#D32F2F" />
+                        android:textColor="?attr/colorPrimary"
+                        app:buttonTint="?attr/colorPrimary" />
 
                     <RadioButton
                         android:id="@+id/rbMealOff"
@@ -150,8 +150,8 @@
                         android:text="Meal OFF"
                         android:textSize="14sp"
                         android:textStyle="bold"
-                        android:textColor="#D32F2F"
-                        app:buttonTint="#D32F2F" />
+                        android:textColor="?attr/colorPrimary"
+                        app:buttonTint="?attr/colorPrimary" />
 
                 </RadioGroup>
 
@@ -161,10 +161,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:text="Update"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?attr/colorOnPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    app:backgroundTint="#D32F2F"
+                    app:backgroundTint="?attr/colorPrimary"
                     app:cornerRadius="8dp" />
 
             </LinearLayout>
@@ -178,7 +178,7 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
+            app:strokeColor="?attr/colorPrimaryContainer"
             app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
@@ -200,6 +200,7 @@
                         android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:src="@drawable/ic_chevron_left"
+                        app:tint="?attr/colorPrimary"
                         android:contentDescription="Previous Month" />
 
                     <TextView
@@ -210,7 +211,7 @@
                         android:gravity="center"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <ImageButton
                         android:id="@+id/btnNextMonth"
@@ -218,6 +219,7 @@
                         android:layout_height="40dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:src="@drawable/ic_chevron_right"
+                        app:tint="?attr/colorPrimary"
                         android:contentDescription="Next Month" />
 
                 </LinearLayout>
@@ -318,7 +320,7 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
+            app:strokeColor="?attr/colorPrimaryContainer"
             app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
@@ -331,7 +333,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Status Legend"
-                    android:textColor="#B71C1C"
+                    android:textColor="?attr/colorPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="10dp" />

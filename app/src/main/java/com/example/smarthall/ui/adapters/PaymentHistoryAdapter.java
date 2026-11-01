@@ -74,6 +74,14 @@ public class PaymentHistoryAdapter extends RecyclerView.Adapter<PaymentHistoryAd
 
             binding.tvHistoryAmount.setText(String.format(Locale.US, "%.0f BDT", payment.getAmount()));
 
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            if (binding.getRoot().getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+                binding.tvHistoryTrxId.setTextColor(typedValue.data);
+                binding.tvHistoryAmount.setTextColor(typedValue.data);
+                binding.btnDownloadReceipt.setTextColor(typedValue.data);
+                binding.btnDownloadReceipt.setStrokeColor(android.content.res.ColorStateList.valueOf(typedValue.data));
+            }
+
             binding.btnDownloadReceipt.setOnClickListener(v -> {
                 if (listener != null) {
                     listener.onDownloadReceipt(payment);

@@ -1,7 +1,9 @@
 package com.example.smarthall.ui.adapters;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -74,18 +76,25 @@ public class CalendarDayAdapter extends RecyclerView.Adapter<CalendarDayAdapter.
             binding.tvDayNumber.setText(String.valueOf(day.getDayNumber()));
             binding.tvDayNumber.setPaintFlags(binding.tvDayNumber.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
 
+            Context context = itemView.getContext();
+            TypedValue typedValue = new TypedValue();
+            int colorPrimary = 0xFFC62828;
+            if (context.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+                colorPrimary = typedValue.data;
+            }
+
             String status = day.getStatus();
             if ("MEAL_CLOSE".equalsIgnoreCase(status)) {
-                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(itemView.getContext(), R.drawable.bg_meal_close));
+                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_meal_close));
                 binding.tvDayNumber.setTextColor(Color.WHITE);
             } else if ("HALL_CLOSE".equalsIgnoreCase(status)) {
-                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(itemView.getContext(), R.drawable.bg_hall_close));
-                binding.tvDayNumber.setTextColor(Color.parseColor("#B71C1C"));
+                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_hall_close));
+                binding.tvDayNumber.setTextColor(colorPrimary);
             } else if ("OFF".equalsIgnoreCase(status)) {
-                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(itemView.getContext(), R.drawable.bg_meal_off));
-                binding.tvDayNumber.setTextColor(Color.parseColor("#D32F2F"));
+                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_meal_off));
+                binding.tvDayNumber.setTextColor(colorPrimary);
             } else {
-                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(itemView.getContext(), R.drawable.bg_meal_on));
+                binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_meal_on));
                 binding.tvDayNumber.setTextColor(Color.WHITE);
             }
         }

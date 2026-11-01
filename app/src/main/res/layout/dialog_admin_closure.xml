@@ -17,7 +17,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#B71C1C"
+            android:background="?attr/colorPrimary"
             android:padding="18dp"
             android:gravity="center_vertical">
 
@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Select Date Range"
-                android:textColor="#B71C1C"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
@@ -59,8 +59,8 @@
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
                     android:hint="From Date"
-                    app:boxStrokeColor="#D32F2F"
-                    app:hintTextColor="#B71C1C">
+                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:hintTextColor="?attr/colorPrimary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etClosureFromDate"
@@ -80,8 +80,8 @@
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
                     android:hint="To Date"
-                    app:boxStrokeColor="#D32F2F"
-                    app:hintTextColor="#B71C1C">
+                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:hintTextColor="?attr/colorPrimary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etClosureToDate"
@@ -100,7 +100,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 android:text="Closure Action"
-                android:textColor="#B71C1C"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="6dp" />
@@ -117,8 +117,8 @@
                     android:checked="true"
                     android:text="MEAL_CLOSE (Meal Off for all students)"
                     android:textSize="14sp"
-                    android:textColor="#B71C1C"
-                    app:buttonTint="#D32F2F" />
+                    android:textColor="?attr/colorPrimary"
+                    app:buttonTint="?attr/colorPrimary" />
 
                 <RadioButton
                     android:id="@+id/rbHallClose"
@@ -127,8 +127,8 @@
                     android:layout_marginTop="4dp"
                     android:text="HALL_CLOSE (Hall &amp; Dining fully closed)"
                     android:textSize="14sp"
-                    android:textColor="#D32F2F"
-                    app:buttonTint="#D32F2F" />
+                    android:textColor="?attr/colorPrimary"
+                    app:buttonTint="?attr/colorPrimary" />
 
                 <RadioButton
                     android:id="@+id/rbClearClosure"
@@ -137,8 +137,8 @@
                     android:layout_marginTop="4dp"
                     android:text="CLEAR_CLOSURE (Reopen / Normal Schedule)"
                     android:textSize="14sp"
-                    android:textColor="#B71C1C"
-                    app:buttonTint="#D32F2F" />
+                    android:textColor="?attr/colorPrimary"
+                    app:buttonTint="?attr/colorPrimary" />
 
             </RadioGroup>
 
@@ -156,7 +156,7 @@
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    app:backgroundTint="#D32F2F"
+                    app:backgroundTint="?attr/colorPrimary"
                     app:cornerRadius="8dp" />
 
                 <com.google.android.material.button.MaterialButton
