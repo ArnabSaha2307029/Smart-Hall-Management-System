@@ -7,7 +7,7 @@
     android:layout_margin="8dp"
     app:cardCornerRadius="10dp"
     app:cardElevation="1dp"
-    app:strokeColor="#FFCDD2"
+    app:strokeColor="?attr/colorPrimaryContainer"
     app:strokeWidth="1dp"
     app:cardBackgroundColor="@color/white">
 
@@ -29,7 +29,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Trx ID: --"
-                android:textColor="#B71C1C"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="0 BDT"
-                android:textColor="#B71C1C"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -59,13 +59,13 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:text="Receipt / PDF"
-            android:textColor="#D32F2F"
+            android:textColor="?attr/colorPrimary"
             android:textSize="11sp"
             android:textStyle="bold"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             app:backgroundTint="#FFFFFF"
-            app:strokeColor="#D32F2F"
+            app:strokeColor="?attr/colorPrimary"
             app:strokeWidth="1dp"
             app:cornerRadius="6dp" />
 

@@ -6,12 +6,11 @@
     android:background="@color/colorBackground"
     android:orientation="vertical">
 
-    <!-- Top Header Bar -->
     <LinearLayout
         android:id="@+id/headerLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/headerBackground"
+        android:background="?attr/colorPrimary"
         android:elevation="4dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -54,7 +53,6 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-        <!-- Profile Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,7 +72,7 @@
                     android:text="@string/profile_info"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorPrimary"
+                    android:textColor="?attr/colorPrimary"
                     android:layout_marginBottom="12dp" />
 
                 <TextView
@@ -137,7 +135,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="14sp"
-                        android:textColor="@color/colorPrimary" />
+                        android:textColor="?attr/colorPrimary" />
 
                 </LinearLayout>
 
@@ -165,7 +163,6 @@
 
                 </LinearLayout>
 
-                <!-- Call & Email Buttons -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -179,7 +176,7 @@
                         android:layout_weight="1"
                         android:text="@string/btn_call"
                         android:textSize="12sp"
-                        android:backgroundTint="@color/studentColor"
+                        android:backgroundTint="?attr/colorPrimary"
                         android:layout_marginEnd="8dp" />
 
                     <Button
@@ -189,14 +186,13 @@
                         android:layout_weight="1"
                         android:text="@string/btn_email"
                         android:textSize="12sp"
-                        android:backgroundTint="@color/colorSecondary" />
+                        android:backgroundTint="?attr/colorSecondary" />
 
                 </LinearLayout>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Room & Seat Allocation Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -216,7 +212,7 @@
                     android:text="@string/room_allocation"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorPrimary"
+                    android:textColor="?attr/colorPrimary"
                     android:layout_marginBottom="12dp" />
 
                 <TextView
@@ -253,13 +249,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:text="@string/btn_save_seat"
-                    android:backgroundTint="@color/colorPrimary"
+                    android:backgroundTint="?attr/colorPrimary"
                     android:layout_marginTop="12dp" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Fee Records Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -278,7 +273,7 @@
                     android:text="@string/fee_records"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/colorPrimary"
+                    android:textColor="?attr/colorPrimary"
                     android:layout_marginBottom="8dp" />
 
                 <TextView

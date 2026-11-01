@@ -20,6 +20,7 @@ import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
+import com.example.smarthall.util.ThemeHelper;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.google.firebase.auth.AuthCredential;
@@ -39,6 +40,7 @@ public class LoginActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());

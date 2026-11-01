@@ -30,7 +30,7 @@
                 android:src="@drawable/ic_menu_hamburger"
                 android:contentDescription="Menu"
                 android:padding="8dp"
-                app:tint="#B71C1C" />
+                app:tint="?attr/colorPrimary" />
 
             <TextView
                 android:layout_width="0dp"
@@ -38,7 +38,7 @@
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:text="Admin Panel"
-                android:textColor="#B71C1C"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
                 android:src="@drawable/ic_notifications"
                 android:contentDescription="Broadcast Notice"
                 android:padding="8dp"
-                app:tint="#B71C1C" />
+                app:tint="?attr/colorPrimary" />
 
             <ImageButton
                 android:id="@+id/btnAdminTopLogout"
@@ -61,7 +61,7 @@
                 android:src="@drawable/ic_logout"
                 android:contentDescription="Logout"
                 android:padding="8dp"
-                app:tint="#B71C1C" />
+                app:tint="?attr/colorPrimary" />
 
         </LinearLayout>
 
@@ -75,7 +75,7 @@
             app:cardCornerRadius="8dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
+            app:strokeColor="?attr/colorPrimaryContainer"
             app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
@@ -99,7 +99,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -129,7 +129,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -159,7 +159,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -188,7 +188,7 @@
                 android:layout_weight="1"
                 android:text="@string/tab_students"
                 android:textSize="13sp"
-                android:backgroundTint="@color/colorPrimary"
+                android:backgroundTint="?attr/colorPrimary"
                 android:textColor="@color/white"
                 style="?attr/borderlessButtonStyle" />
 
@@ -205,7 +205,7 @@
                 android:text="@string/tab_complaints"
                 android:textSize="13sp"
                 android:backgroundTint="@color/white"
-                android:textColor="@color/colorPrimary"
+                android:textColor="?attr/colorPrimary"
                 style="?attr/borderlessButtonStyle" />
 
             <View
@@ -221,7 +221,7 @@
                 android:text="@string/tab_notices"
                 android:textSize="13sp"
                 android:backgroundTint="@color/white"
-                android:textColor="@color/colorPrimary"
+                android:textColor="?attr/colorPrimary"
                 style="?attr/borderlessButtonStyle" />
 
         </LinearLayout>
@@ -299,7 +299,7 @@
                     android:layout_marginBottom="12dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="2dp"
-                    app:strokeColor="@color/colorPrimary"
+                    app:strokeColor="?attr/colorPrimary"
                     app:strokeWidth="1dp">
 
                     <LinearLayout
@@ -314,7 +314,7 @@
                             android:text="Broadcast Emergency Notice / Alert"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="@color/colorPrimary"
+                            android:textColor="?attr/colorPrimary"
                             android:layout_marginBottom="8dp" />
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -355,7 +355,7 @@
                             android:text="Broadcast Alert"
                             android:textSize="13sp"
                             android:textStyle="bold"
-                            android:backgroundTint="@color/colorPrimary"
+                            android:backgroundTint="?attr/colorPrimary"
                             android:textColor="@color/white" />
 
                     </LinearLayout>
@@ -366,7 +366,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="40dp"
                     android:text="@string/btn_add_notice"
-                    android:backgroundTint="@color/colorSecondary"
+                    android:backgroundTint="?attr/colorPrimary"
                     android:layout_marginBottom="8dp" />
 
                 <TextView
@@ -404,7 +404,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#B71C1C"
+            android:background="?attr/colorPrimary"
             android:orientation="vertical"
             android:padding="20dp">
 
@@ -430,7 +430,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="Hall Administration Account"
-                android:textColor="#FFCDD2"
+                android:textColor="?attr/colorPrimaryContainer"
                 android:textSize="13sp" />
 
         </LinearLayout>
@@ -458,7 +458,7 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_chevron_right"
                     app:iconGravity="textEnd"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNavRoomAllocation"
@@ -472,7 +472,7 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_chevron_right"
                     app:iconGravity="textEnd"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnHallClosureManagement"
@@ -486,7 +486,7 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_chevron_right"
                     app:iconGravity="textEnd"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNavBroadcastNotice"
@@ -500,7 +500,7 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_chevron_right"
                     app:iconGravity="textEnd"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNavComplaints"
@@ -514,7 +514,21 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_chevron_right"
                     app:iconGravity="textEnd"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnNavAppTheme"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Themes"
+                    android:textAlignment="textStart"
+                    android:textColor="#212121"
+                    android:textSize="14sp"
+                    android:padding="12dp"
+                    app:icon="@drawable/ic_chevron_right"
+                    app:iconGravity="textEnd"
+                    app:iconTint="?attr/colorPrimary" />
 
                 <View
                     android:layout_width="match_parent"
@@ -530,13 +544,13 @@
                     android:layout_height="wrap_content"
                     android:text="Logout"
                     android:textAlignment="textStart"
-                    android:textColor="#B71C1C"
+                    android:textColor="?attr/colorPrimary"
                     android:textStyle="bold"
                     android:textSize="14sp"
                     android:padding="12dp"
                     app:icon="@drawable/ic_logout"
                     app:iconGravity="textStart"
-                    app:iconTint="#B71C1C" />
+                    app:iconTint="?attr/colorPrimary" />
 
             </LinearLayout>
         </ScrollView>

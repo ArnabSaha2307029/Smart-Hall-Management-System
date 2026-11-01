@@ -1,14 +1,18 @@
 package com.example.smarthall.ui.base;
 
+import android.os.Bundle;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.smarthall.util.ThemeHelper;
 
 public abstract class BaseActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "HallLifecycle";
 
     @Override
-    protected void onCreate(android.os.Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         Log.d(LOG_TAG, getClass().getSimpleName() + " -> onCreate");
     }
@@ -47,5 +51,13 @@ public abstract class BaseActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         Log.d(LOG_TAG, getClass().getSimpleName() + " -> onDestroy");
+    }
+
+    public int getThemeColor(int attrRes, int defaultColor) {
+        android.util.TypedValue typedValue = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(attrRes, typedValue, true)) {
+            return typedValue.data;
+        }
+        return defaultColor;
     }
 }

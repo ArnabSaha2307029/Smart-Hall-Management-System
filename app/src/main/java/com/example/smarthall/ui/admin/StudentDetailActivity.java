@@ -19,6 +19,7 @@ import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
+import com.example.smarthall.util.ThemeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ public class StudentDetailActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
         binding = ActivityStudentDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -67,7 +69,6 @@ public class StudentDetailActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         if (student != null) {
-            // Re-fetch student to pick up any changes
             student = repository.getStudentById(student.getId());
             populateStudentProfile();
             updateRoomSeatView();
@@ -93,12 +94,13 @@ public class StudentDetailActivity extends BaseActivity {
             binding.tvDetailAllocation.setText("Not Assigned");
         }
 
+        int statusTextColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
         if (FeeRecord.STATUS_PAID.equals(student.getFeeStatus())) {
             binding.tvDetailFeeStatus.setText("PAID");
-            binding.tvDetailFeeStatus.setTextColor(getResources().getColor(R.color.statusPaid, null));
+            binding.tvDetailFeeStatus.setTextColor(statusTextColor);
         } else {
             binding.tvDetailFeeStatus.setText("UNPAID");
-            binding.tvDetailFeeStatus.setTextColor(getResources().getColor(R.color.statusUnpaid, null));
+            binding.tvDetailFeeStatus.setTextColor(statusTextColor);
         }
     }
 
@@ -113,7 +115,6 @@ public class StudentDetailActivity extends BaseActivity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         binding.spinnerRoom.setAdapter(adapter);
 
-        // Pre-select student's current room
         if (student.getAllocatedRoom() != null && !student.getAllocatedRoom().equalsIgnoreCase("Unassigned")) {
             int pos = roomNumbers.indexOf(student.getAllocatedRoom());
             if (pos > 0) {

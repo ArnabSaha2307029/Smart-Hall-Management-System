@@ -15,7 +15,7 @@
             android:id="@+id/toolbarRoomManagement"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/colorPrimary"
+            android:background="?attr/colorPrimary"
             app:title="Room Allocation"
             app:titleTextColor="@color/white"
             app:navigationIcon="@drawable/ic_chevron_left"
@@ -31,7 +31,7 @@
             app:cardCornerRadius="10dp"
             app:cardElevation="2dp"
             app:strokeWidth="1dp"
-            app:strokeColor="#FFCDD2"
+            app:strokeColor="?attr/colorPrimaryContainer"
             app:cardBackgroundColor="@color/white">
 
             <LinearLayout
@@ -55,7 +55,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -85,7 +85,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#5C0000" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -115,7 +115,7 @@
                         android:text="0"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#B71C1C" />
+                        android:textColor="?attr/colorPrimary" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -141,7 +141,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:indeterminateTint="@color/colorPrimary" />
+                android:indeterminateTint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/tvEmptyRooms"
@@ -175,6 +175,6 @@
         android:src="@drawable/ic_add"
         android:contentDescription="Add New Room"
         app:tint="@color/white"
-        app:backgroundTint="@color/colorPrimary" />
+        app:backgroundTint="?attr/colorPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
