@@ -95,6 +95,32 @@ public class Student {
     public String getProfileImageBase64() { return profileImageBase64; }
     public void setProfileImageBase64(String profileImageBase64) { this.profileImageBase64 = profileImageBase64; }
 
+    private String allocationStatus;
+
+    public String getRoom() {
+        return allocatedRoom;
+    }
+
+    public void setRoom(String room) {
+        this.allocatedRoom = room;
+    }
+
+    public String getSeat() {
+        return allocatedSeat;
+    }
+
+    public void setSeat(String seat) {
+        this.allocatedSeat = seat;
+    }
+
+    public String getAllocationStatus() {
+        return allocationStatus != null ? allocationStatus : (isAssigned() ? "ALLOCATED" : "UNALLOCATED");
+    }
+
+    public void setAllocationStatus(String allocationStatus) {
+        this.allocationStatus = allocationStatus;
+    }
+
     public boolean isAssigned() {
         return allocatedRoom != null && !allocatedRoom.isEmpty()
                 && !allocatedRoom.equalsIgnoreCase("Unassigned")

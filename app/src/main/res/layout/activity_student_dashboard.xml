@@ -340,11 +340,47 @@
                             android:textColor="@color/colorPrimary"
                             android:layout_marginBottom="8dp" />
 
-                        <com.example.smarthall.ui.customview.RoomSeatView
-                            android:id="@+id/studentRoomSeatView"
+                        <LinearLayout
+                            android:id="@+id/layoutRoomMapContent"
                             android:layout_width="match_parent"
-                            android:layout_height="260dp"
-                            app:interactiveMode="false" />
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <com.example.smarthall.ui.customview.RoomSeatView
+                                android:id="@+id/studentRoomSeatView"
+                                android:layout_width="match_parent"
+                                android:layout_height="260dp"
+                                app:interactiveMode="false" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Roommates"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="#B71C1C"
+                                android:layout_marginTop="12dp"
+                                android:layout_marginBottom="6dp" />
+
+                            <LinearLayout
+                                android:id="@+id/layoutRoommatesList"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvNoRoomAllocatedNotice"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="No seat allocated yet. Please contact Hall Administration."
+                            android:textSize="14sp"
+                            android:textColor="#757575"
+                            android:gravity="center"
+                            android:paddingTop="20dp"
+                            android:paddingBottom="20dp"
+                            android:visibility="gone" />
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

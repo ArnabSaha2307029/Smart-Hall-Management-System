@@ -461,6 +461,20 @@
                     app:iconTint="#B71C1C" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnNavRoomAllocation"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Room Allocation Management"
+                    android:textAlignment="textStart"
+                    android:textColor="#212121"
+                    android:textSize="14sp"
+                    android:padding="12dp"
+                    app:icon="@drawable/ic_chevron_right"
+                    app:iconGravity="textEnd"
+                    app:iconTint="#B71C1C" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnHallClosureManagement"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="match_parent"

@@ -39,6 +39,7 @@ import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.MealCutoffUtil;
+import com.example.smarthall.util.RoomAllocationManager;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
@@ -100,6 +101,7 @@ public class AdminDashboardActivity extends BaseActivity {
         setupBroadcastNotice();
         setupNoticesListener();
         setupStudentsListener();
+        RoomAllocationManager.seedDefaultRoomsIfEmpty(null);
         switchTab(TAB_STUDENTS);
     }
 
@@ -173,6 +175,11 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.btnNavStudents.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             switchTab(TAB_STUDENTS);
+        });
+        binding.btnNavRoomAllocation.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            Intent intent = new Intent(AdminDashboardActivity.this, RoomManagementActivity.class);
+            startActivity(intent);
         });
         binding.btnHallClosureManagement.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);

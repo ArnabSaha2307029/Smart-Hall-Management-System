@@ -12,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.widget.TextView;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.net.ConnectivityManager;
@@ -39,6 +40,7 @@ import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.FeeRecord;
 import com.example.smarthall.model.PaymentRecord;
 import com.example.smarthall.model.Room;
+import com.example.smarthall.model.SeatOccupant;
 import com.example.smarthall.model.Student;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
@@ -78,6 +80,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private Student student;
     private FeeRecordAdapter feeRecordAdapter;
     private ListenerRegistration feeListenerRegistration;
+    private ListenerRegistration roomListener;
     private ComplaintAdapter complaintAdapter;
     private ActivityResultLauncher<String> requestPermissionLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
@@ -268,6 +271,10 @@ public class StudentDashboardActivity extends BaseActivity {
         if (networkSnackbar != null && networkSnackbar.isShown()) {
             networkSnackbar.dismiss();
         }
+        if (roomListener != null) {
+            roomListener.remove();
+            roomListener = null;
+        }
     }
 
     @Override
@@ -276,6 +283,10 @@ public class StudentDashboardActivity extends BaseActivity {
         if (feeListenerRegistration != null) {
             feeListenerRegistration.remove();
             feeListenerRegistration = null;
+        }
+        if (roomListener != null) {
+            roomListener.remove();
+            roomListener = null;
         }
     }
 
@@ -453,11 +464,18 @@ public class StudentDashboardActivity extends BaseActivity {
         String dept = doc.getString("department");
         String email = doc.getString("email");
         String phone = doc.getString("phone");
-        String room = doc.getString("roomNo");
+        String room = doc.getString("room");
         if (TextUtils.isEmpty(room)) {
             room = doc.getString("allocatedRoom");
         }
-        String seat = doc.getString("allocatedSeat");
+        if (TextUtils.isEmpty(room)) {
+            room = doc.getString("roomNo");
+        }
+        String seat = doc.getString("seat");
+        if (TextUtils.isEmpty(seat)) {
+            seat = doc.getString("allocatedSeat");
+        }
+        String allocationStatus = doc.getString("allocationStatus");
         String feeStatus = doc.getString("feeStatus");
         String boarderNo = doc.getString("boarderNo");
         String dining = doc.getString("dining");
@@ -511,36 +529,95 @@ public class StudentDashboardActivity extends BaseActivity {
     private void setupSeatView() {
         binding.studentRoomSeatView.setInteractiveMode(false);
 
-        if (!student.isAssigned()) {
-            binding.studentRoomSeatView.setRoomTitle("No Room Assigned");
-            binding.studentRoomSeatView.setSeatData(new int[]{0,0,0,0},
-                    new String[]{"Empty","Empty","Empty","Empty"});
+        String room = student != null ? student.getAllocatedRoom() : null;
+        if (TextUtils.isEmpty(room) || "Unassigned".equalsIgnoreCase(room)) {
+            binding.layoutRoomMapContent.setVisibility(View.GONE);
+            binding.tvNoRoomAllocatedNotice.setVisibility(View.VISIBLE);
+            if (roomListener != null) {
+                roomListener.remove();
+                roomListener = null;
+            }
             return;
         }
 
-        Room room = repository.getRoomByNumber(student.getAllocatedRoom());
-        if (room == null) return;
+        binding.layoutRoomMapContent.setVisibility(View.VISIBLE);
+        binding.tvNoRoomAllocatedNotice.setVisibility(View.GONE);
+
+        if (roomListener != null) {
+            roomListener.remove();
+            roomListener = null;
+        }
+
+        roomListener = FirebaseFirestore.getInstance().collection("rooms").document(room)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null || snapshot == null || !snapshot.exists()) {
+                        return;
+                    }
+                    updateRoomViewFromSnapshot(snapshot);
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void updateRoomViewFromSnapshot(DocumentSnapshot snapshot) {
+        Map<String, Object> seats = (Map<String, Object>) snapshot.get("seats");
+        String myRoll = student != null && !TextUtils.isEmpty(student.getRollNumber())
+                ? student.getRollNumber() : (student != null ? student.getRoll() : "");
+        String myName = student != null ? student.getName() : "Student";
 
         String[] seatKeys = {Room.SEAT_A, Room.SEAT_B, Room.SEAT_C, Room.SEAT_D};
         int[] states = new int[4];
         String[] names = new String[4];
+        binding.layoutRoommatesList.removeAllViews();
+        int roommateCount = 0;
 
         for (int i = 0; i < 4; i++) {
-            String occupantId = room.getOccupantId(seatKeys[i]);
-            if (occupantId == null || occupantId.isEmpty()) {
+            String seatKey = seatKeys[i];
+            Object occupantObj = seats != null ? seats.get(seatKey) : null;
+            SeatOccupant occupant = SeatOccupant.fromObject(occupantObj);
+
+            if (occupant == null) {
                 states[i] = RoomSeatView.STATE_AVAILABLE;
-                names[i] = "Empty";
-            } else if (occupantId.equals(student.getId())) {
-                states[i] = RoomSeatView.STATE_MY_SEAT;
-                names[i] = student.getName();
+                names[i] = "Available";
             } else {
-                Student occ = repository.getStudentById(occupantId);
-                states[i] = RoomSeatView.STATE_OCCUPIED;
-                names[i] = occ != null ? occ.getName() : "Occupied";
+                boolean isMySeat = !TextUtils.isEmpty(myRoll) && myRoll.equalsIgnoreCase(occupant.getRoll());
+                if (isMySeat) {
+                    states[i] = RoomSeatView.STATE_MY_SEAT;
+                    names[i] = myName + " (" + myRoll + ")";
+                } else {
+                    states[i] = RoomSeatView.STATE_OCCUPIED;
+                    names[i] = occupant.getName() + " (Seat " + seatKey + ")";
+
+                    roommateCount++;
+                    View roommateView = LayoutInflater.from(this).inflate(R.layout.item_roommate_card, binding.layoutRoommatesList, false);
+                    TextView tvSeat = roommateView.findViewById(R.id.tvRoommateSeat);
+                    TextView tvRName = roommateView.findViewById(R.id.tvRoommateName);
+                    TextView tvRRoll = roommateView.findViewById(R.id.tvRoommateRoll);
+
+                    tvSeat.setText(seatKey);
+                    tvRName.setText(occupant.getName());
+                    tvRRoll.setText("Roll: " + occupant.getRoll());
+                    binding.layoutRoommatesList.addView(roommateView);
+                }
             }
         }
 
-        binding.studentRoomSeatView.setRoomTitle("Room " + student.getAllocatedRoom());
+        if (roommateCount == 0) {
+            TextView tvEmptyRoommate = new TextView(this);
+            tvEmptyRoommate.setText("No roommates currently assigned in this room.");
+            tvEmptyRoommate.setTextColor(Color.parseColor("#757575"));
+            tvEmptyRoommate.setTextSize(12);
+            tvEmptyRoommate.setPadding(4, 4, 4, 4);
+            binding.layoutRoommatesList.addView(tvEmptyRoommate);
+        }
+
+        String roomNumber = snapshot.getString("roomId");
+        if (TextUtils.isEmpty(roomNumber)) {
+            roomNumber = snapshot.getId();
+        }
+        Long floorLong = snapshot.getLong("floor");
+        long floor = floorLong != null ? floorLong : 1;
+
+        binding.studentRoomSeatView.setRoomTitle("Room " + roomNumber + " (Floor " + floor + ")");
         binding.studentRoomSeatView.setSeatData(states, names);
     }
 
