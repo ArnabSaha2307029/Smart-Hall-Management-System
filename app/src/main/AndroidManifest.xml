@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -81,6 +82,23 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.chat.ChatActivity"
+            android:exported="true"
+            android:label="Chat"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="OPEN_CHAT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.chat.AdminChatListActivity"
+            android:exported="false"
+            android:label="Student Messages"
+            android:parentActivityName=".ui.admin.AdminDashboardActivity" />
 
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"

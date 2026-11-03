@@ -1,14 +1,20 @@
 package com.example.smarthall.ui.admin;
 
+import android.Manifest;
 import android.app.AlertDialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.ConnectivityManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Base64;
@@ -19,7 +25,11 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
@@ -38,6 +48,8 @@ import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.ui.chat.AdminChatListActivity;
+import com.example.smarthall.ui.chat.ChatActivity;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.MealCutoffUtil;
@@ -56,6 +68,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.WriteBatch;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -86,6 +99,7 @@ public class AdminDashboardActivity extends BaseActivity {
     private static final int TAB_COMPLAINTS = 1;
     private static final int TAB_NOTICES = 2;
     private int currentTab = TAB_STUDENTS;
+    private ActivityResultLauncher<String> requestPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +107,33 @@ public class AdminDashboardActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityAdminDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        createNotificationChannels();
+
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        subscribeToAdminTopics();
+                    }
+                }
+        );
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            } else {
+                subscribeToAdminTopics();
+            }
+        } else {
+            subscribeToAdminTopics();
+        }
+
+        getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                .edit()
+                .putString("user_role", "admin")
+                .apply();
 
         repository = HallRepository.getInstance();
         FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
@@ -168,6 +209,47 @@ public class AdminDashboardActivity extends BaseActivity {
         }
     }
 
+    private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) {
+                NotificationChannel noticeChannel = new NotificationChannel(
+                        "hall_notices_channel",
+                        "Hall Announcements",
+                        NotificationManager.IMPORTANCE_HIGH);
+                noticeChannel.enableLights(true);
+                noticeChannel.enableVibration(true);
+                noticeChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                nm.createNotificationChannel(noticeChannel);
+
+                NotificationChannel chatChannel = new NotificationChannel(
+                        "hall_chat_channel",
+                        "Hall Chat Messages",
+                        NotificationManager.IMPORTANCE_HIGH);
+                chatChannel.enableLights(true);
+                chatChannel.setLightColor(Color.RED);
+                chatChannel.enableVibration(true);
+                chatChannel.setVibrationPattern(new long[]{0, 250, 250, 250});
+                chatChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                chatChannel.setBypassDnd(true);
+                nm.createNotificationChannel(chatChannel);
+            }
+        }
+    }
+
+    private void subscribeToAdminTopics() {
+        String topicName = "admin_inbox";
+        Log.e("TOPIC_CHECK", "Subscribing strictly to: [" + topicName + "]");
+        FirebaseMessaging.getInstance().subscribeToTopic(topicName)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM_SUB", "Successfully subscribed to topic: " + topicName);
+                    } else {
+                        Log.e("FCM_SUB", "Failed to subscribe to topic: " + topicName, task.getException());
+                    }
+                });
+    }
+
     private void setupHeader() {
         binding.btnAdminMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
         binding.btnTopBroadcastNotice.setOnClickListener(v -> {
@@ -199,6 +281,11 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.btnNavComplaints.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             switchTab(TAB_COMPLAINTS);
+        });
+        binding.btnNavStudentMessages.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            Intent intent = new Intent(AdminDashboardActivity.this, AdminChatListActivity.class);
+            startActivity(intent);
         });
         binding.btnNavAppTheme.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -621,7 +708,11 @@ public class AdminDashboardActivity extends BaseActivity {
         });
 
         dialogBinding.btnSendMessage.setOnClickListener(v -> {
-            Toast.makeText(this, "Messaging feature will be available soon", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+            Intent intent = new Intent(this, ChatActivity.class);
+            intent.putExtra("student_roll", student.getRollNumber());
+            intent.putExtra("chatting_with_role", "student");
+            startActivity(intent);
         });
 
         dialogBinding.btnAssignDiningManager.setOnClickListener(v -> {
@@ -777,6 +868,7 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void logout() {
+        getSharedPreferences("user_session", Context.MODE_PRIVATE).edit().clear().apply();
         FirebaseAuth.getInstance().signOut();
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

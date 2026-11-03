@@ -1,5 +1,6 @@
 package com.example.smarthall.ui.auth;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -142,6 +143,10 @@ public class LoginActivity extends BaseActivity {
                 if (document != null && document.exists()) {
                     String role = document.getString("role");
                     if ("admin".equalsIgnoreCase(role)) {
+                        getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("user_role", "admin")
+                                .apply();
                         Intent intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
                         intent.putExtra("EXTRA_USER_ID", uid);
                         intent.putExtra("EXTRA_USER_ROLE", "ADMIN");
@@ -149,6 +154,10 @@ public class LoginActivity extends BaseActivity {
                         startActivity(intent);
                         finish();
                     } else if ("student".equalsIgnoreCase(role)) {
+                        getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("user_role", "student")
+                                .apply();
                         Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
                         intent.putExtra("EXTRA_USER_ID", uid);
                         intent.putExtra("EXTRA_USER_ROLE", "STUDENT");

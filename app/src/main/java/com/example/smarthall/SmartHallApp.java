@@ -3,6 +3,7 @@ package com.example.smarthall;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.util.Log;
 
@@ -13,26 +14,39 @@ import com.google.firebase.messaging.FirebaseMessaging;
 public class SmartHallApp extends Application {
 
     public static final String CHANNEL_ID = "hall_notices_channel";
+    public static final String CHAT_CHANNEL_ID = "hall_chat_channel";
 
     @Override
     public void onCreate() {
         super.onCreate();
-        createNotificationChannel();
+        createNotificationChannels();
         logDeviceToken();
     }
 
-    private void createNotificationChannel() {
+    private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Hall Announcements",
-                    NotificationManager.IMPORTANCE_HIGH);
-            channel.enableLights(true);
-            channel.enableVibration(true);
-            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) {
-                nm.createNotificationChannel(channel);
+                NotificationChannel noticeChannel = new NotificationChannel(
+                        CHANNEL_ID,
+                        "Hall Announcements",
+                        NotificationManager.IMPORTANCE_HIGH);
+                noticeChannel.enableLights(true);
+                noticeChannel.enableVibration(true);
+                noticeChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                nm.createNotificationChannel(noticeChannel);
+
+                NotificationChannel chatChannel = new NotificationChannel(
+                        CHAT_CHANNEL_ID,
+                        "Hall Chat Messages",
+                        NotificationManager.IMPORTANCE_HIGH);
+                chatChannel.enableLights(true);
+                chatChannel.setLightColor(Color.RED);
+                chatChannel.enableVibration(true);
+                chatChannel.setVibrationPattern(new long[]{0, 250, 250, 250});
+                chatChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                chatChannel.setBypassDnd(true);
+                nm.createNotificationChannel(chatChannel);
             }
         }
     }

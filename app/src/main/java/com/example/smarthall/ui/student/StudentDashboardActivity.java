@@ -48,6 +48,7 @@ import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
+import com.example.smarthall.ui.chat.ChatActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
@@ -94,6 +95,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private NetworkChangeReceiver networkChangeReceiver;
     private Snackbar networkSnackbar;
     private boolean isPreviouslyOffline = false;
+    private boolean isNotificationPermissionGranted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,8 +109,11 @@ public class StudentDashboardActivity extends BaseActivity {
                 isGranted -> {
                     if (isGranted) {
                         Log.d("FCM", "POST_NOTIFICATIONS permission granted");
+                        isNotificationPermissionGranted = true;
+                        subscribeToStudentTopics();
                     } else {
                         Log.w("FCM", "POST_NOTIFICATIONS permission denied");
+                        isNotificationPermissionGranted = false;
                     }
                 }
         );
@@ -154,23 +159,21 @@ public class StudentDashboardActivity extends BaseActivity {
                 }
         );
 
+        createNotificationChannel();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
+                isNotificationPermissionGranted = false;
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            } else {
+                isNotificationPermissionGranted = true;
+                subscribeToStudentTopics();
             }
+        } else {
+            isNotificationPermissionGranted = true;
+            subscribeToStudentTopics();
         }
-
-        createNotificationChannel();
-
-        FirebaseMessaging.getInstance().subscribeToTopic("hall_notices")
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Log.d("FCM", "Subscribed to hall_notices topic successfully");
-                    } else {
-                        Log.e("FCM", "Topic subscription failed", task.getException());
-                    }
-                });
 
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(task -> {
@@ -180,6 +183,11 @@ public class StudentDashboardActivity extends BaseActivity {
                         Log.w("FCM", "Fetching FCM registration token failed", task.getException());
                     }
                 });
+
+        getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                .edit()
+                .putString("user_role", "student")
+                .apply();
 
         repository = HallRepository.getInstance();
 
@@ -298,17 +306,75 @@ public class StudentDashboardActivity extends BaseActivity {
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    "hall_notices_channel",
-                    "Hall Announcements",
-                    NotificationManager.IMPORTANCE_HIGH);
-            channel.enableLights(true);
-            channel.enableVibration(true);
-            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
             NotificationManager nm = getSystemService(NotificationManager.class);
             if (nm != null) {
-                nm.createNotificationChannel(channel);
+                NotificationChannel noticeChannel = new NotificationChannel(
+                        "hall_notices_channel",
+                        "Hall Announcements",
+                        NotificationManager.IMPORTANCE_HIGH);
+                noticeChannel.enableLights(true);
+                noticeChannel.enableVibration(true);
+                noticeChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                nm.createNotificationChannel(noticeChannel);
+
+                NotificationChannel chatChannel = new NotificationChannel(
+                        "hall_chat_channel",
+                        "Hall Chat Messages",
+                        NotificationManager.IMPORTANCE_HIGH);
+                chatChannel.enableLights(true);
+                chatChannel.setLightColor(Color.RED);
+                chatChannel.enableVibration(true);
+                chatChannel.setVibrationPattern(new long[]{0, 250, 250, 250});
+                chatChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                chatChannel.setBypassDnd(true);
+                nm.createNotificationChannel(chatChannel);
             }
+        }
+    }
+
+    private void subscribeToStudentTopics() {
+        if (!isNotificationPermissionGranted) {
+            return;
+        }
+
+        String noticeTopic = "hall_notices";
+        Log.e("TOPIC_CHECK", "Subscribing strictly to: [" + noticeTopic + "]");
+        FirebaseMessaging.getInstance().subscribeToTopic(noticeTopic)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM_SUB", "Successfully subscribed to topic: " + noticeTopic);
+                    } else {
+                        Log.e("FCM_SUB", "Failed to subscribe to topic: " + noticeTopic, task.getException());
+                    }
+                });
+
+        String roll = null;
+        if (student != null && student.getRollNumber() != null && !student.getRollNumber().trim().isEmpty()) {
+            roll = student.getRollNumber().trim();
+        }
+        if (roll == null || roll.isEmpty()) {
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser != null) {
+                SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
+                String savedRoll = prefs.getString("student_roll", "");
+                if (savedRoll != null && !savedRoll.trim().isEmpty()) {
+                    roll = savedRoll.trim();
+                }
+            }
+        }
+
+        if (roll != null && !roll.trim().isEmpty()) {
+            final String studentRoll = roll.trim().replaceAll("\\s+", "");
+            final String chatTopic = "student_chat_" + studentRoll;
+            Log.e("TOPIC_CHECK", "Subscribing strictly to: [" + chatTopic + "]");
+            FirebaseMessaging.getInstance().subscribeToTopic(chatTopic)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            Log.d("FCM_SUB", "Successfully subscribed to topic: " + chatTopic);
+                        } else {
+                            Log.e("FCM_SUB", "Failed to subscribe to topic: " + chatTopic, task.getException());
+                        }
+                    });
         }
     }
 
@@ -371,6 +437,23 @@ public class StudentDashboardActivity extends BaseActivity {
         binding.btnNavSubmitComplaint.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             showSubmitComplaintDialog();
+        });
+        binding.btnNavChatWithAdmin.setOnClickListener(v -> {
+            binding.drawerLayout.closeDrawer(GravityCompat.START);
+            String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
+                    ? student.getRollNumber()
+                    : "";
+            if (TextUtils.isEmpty(roll)) {
+                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                if (user != null) {
+                    SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
+                    roll = prefs.getString("student_roll", "");
+                }
+            }
+            Intent intent = new Intent(this, ChatActivity.class);
+            intent.putExtra("student_roll", roll);
+            intent.putExtra("chatting_with_role", "admin");
+            startActivity(intent);
         });
         binding.btnNavFeeRecords.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -515,7 +598,25 @@ public class StudentDashboardActivity extends BaseActivity {
 
         SharedPreferences.Editor editor = prefs.edit();
         if (!TextUtils.isEmpty(name)) editor.putString("student_name", name);
-        if (!TextUtils.isEmpty(roll)) editor.putString("student_roll", roll);
+        if (roll != null && !roll.trim().isEmpty()) {
+            final String studentRoll = roll.trim().replaceAll("\\s+", "");
+            editor.putString("student_roll", studentRoll);
+            if (student != null) {
+                student.setRollNumber(studentRoll);
+            }
+            if (isNotificationPermissionGranted) {
+                final String chatTopic = "student_chat_" + studentRoll;
+                Log.e("TOPIC_CHECK", "Subscribing strictly to: [" + chatTopic + "]");
+                FirebaseMessaging.getInstance().subscribeToTopic(chatTopic)
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                Log.d("FCM_SUB", "Successfully subscribed to topic: " + chatTopic);
+                            } else {
+                                Log.e("FCM_SUB", "Failed to subscribe to topic: " + chatTopic, task.getException());
+                            }
+                        });
+            }
+        }
         if (!TextUtils.isEmpty(dept)) editor.putString("student_department", dept);
         if (!TextUtils.isEmpty(email)) editor.putString("student_email", email);
         if (!TextUtils.isEmpty(phone)) editor.putString("student_phone", phone);
@@ -848,6 +949,7 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void logout() {
+        getSharedPreferences("user_session", Context.MODE_PRIVATE).edit().clear().apply();
         FirebaseAuth.getInstance().signOut();
         navigateToLogin();
     }
