@@ -50,10 +50,6 @@ public class FcmNotificationSender {
                 credentials.refreshIfExpired();
                 String accessToken = credentials.getAccessToken().getTokenValue();
 
-                JSONObject notification = new JSONObject();
-                notification.put("title", title);
-                notification.put("body", message);
-
                 JSONObject data = new JSONObject();
                 data.put("notice_id", noticeId != null ? noticeId : "");
                 data.put("title", title);
@@ -73,7 +69,6 @@ public class FcmNotificationSender {
 
                 JSONObject messageObj = new JSONObject();
                 messageObj.put("topic", "hall_notices");
-                messageObj.put("notification", notification);
                 messageObj.put("data", data);
                 messageObj.put("android", androidObj);
 

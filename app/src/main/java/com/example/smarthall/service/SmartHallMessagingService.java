@@ -13,6 +13,7 @@ import androidx.core.app.TaskStackBuilder;
 
 import com.example.smarthall.R;
 import com.example.smarthall.ui.student.NoticeDetailActivity;
+import com.example.smarthall.ui.student.StudentDashboardActivity;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -51,13 +52,6 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
             }
         }
 
-        if (title == null && remoteMessage.getNotification() != null) {
-            title = remoteMessage.getNotification().getTitle();
-        }
-        if (message == null && remoteMessage.getNotification() != null) {
-            message = remoteMessage.getNotification().getBody();
-        }
-
         if (title == null) {
             title = "Hall Announcement";
         }
@@ -78,7 +72,8 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
         intent.putExtra("timestamp", timestamp);
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-        stackBuilder.addNextIntentWithParentStack(intent);
+        stackBuilder.addNextIntent(new Intent(this, StudentDashboardActivity.class));
+        stackBuilder.addNextIntent(intent);
         PendingIntent pendingIntent = stackBuilder.getPendingIntent(
                 (int) System.currentTimeMillis(),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -87,6 +82,7 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(title)
                 .setContentText(message)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
