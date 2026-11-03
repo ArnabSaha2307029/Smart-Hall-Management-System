@@ -83,6 +83,22 @@
 
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/tvAdminChatUnread"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_badge"
+            android:gravity="center"
+            android:minWidth="18dp"
+            android:minHeight="18dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"

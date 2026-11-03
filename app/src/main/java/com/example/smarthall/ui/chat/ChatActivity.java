@@ -22,6 +22,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ServerValue;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
@@ -79,6 +80,12 @@ public class ChatActivity extends BaseActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        resetUnreadCounter();
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
@@ -98,6 +105,28 @@ public class ChatActivity extends BaseActivity {
                 messagesRef.removeEventListener(messagesListener);
             }
             setupFirebaseReferences();
+            resetUnreadCounter();
+        }
+    }
+
+    private void resetUnreadCounter() {
+        if (TextUtils.isEmpty(studentRoll)) {
+            return;
+        }
+        String cleanRoll = studentRoll.trim().replaceAll("\\s+", "");
+        if (cleanRoll.isEmpty()) {
+            return;
+        }
+        if (isStudentUser) {
+            FirebaseDatabase.getInstance(RTDB_URL).getReference("student_chat_meta")
+                    .child(cleanRoll)
+                    .child("unreadCount")
+                    .setValue(0);
+        } else {
+            FirebaseDatabase.getInstance(RTDB_URL).getReference("admin_chat_list")
+                    .child(cleanRoll)
+                    .child("unreadCount")
+                    .setValue(0);
         }
     }
 
@@ -179,11 +208,20 @@ public class ChatActivity extends BaseActivity {
         chatListEntry.put("studentRoll", studentRoll);
         chatListEntry.put("lastMessage", messageText);
         chatListEntry.put("timestamp", timestamp);
-        adminChatListRef.setValue(chatListEntry);
+        adminChatListRef.updateChildren(chatListEntry);
+
+        String cleanRoll = studentRoll.trim().replaceAll("\\s+", "");
+        if (isStudentUser) {
+            adminChatListRef.child("unreadCount").setValue(ServerValue.increment(1));
+        } else {
+            FirebaseDatabase.getInstance(RTDB_URL).getReference("student_chat_meta")
+                    .child(cleanRoll)
+                    .child("unreadCount")
+                    .setValue(ServerValue.increment(1));
+        }
 
         String targetTopic;
         String fcmTitle;
-        String cleanRoll = studentRoll != null ? studentRoll.trim().replaceAll("\\s+", "") : "";
         if (isStudentUser) {
             targetTopic = "admin_inbox";
             fcmTitle = "Student " + (studentRoll != null ? studentRoll.trim() : "");

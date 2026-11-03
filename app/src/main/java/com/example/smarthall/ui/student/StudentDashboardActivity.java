@@ -24,12 +24,15 @@ import android.util.Base64;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
@@ -56,6 +59,11 @@ import com.example.smarthall.util.ThemeHelper;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -96,6 +104,9 @@ public class StudentDashboardActivity extends BaseActivity {
     private Snackbar networkSnackbar;
     private boolean isPreviouslyOffline = false;
     private boolean isNotificationPermissionGranted = false;
+    private ValueEventListener chatBadgeListener;
+    private DatabaseReference chatBadgeRef;
+    private TextView tvChatBadgeCount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,6 +114,11 @@ public class StudentDashboardActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityStudentDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        setSupportActionBar(binding.toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
 
         requestPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
@@ -243,6 +259,7 @@ public class StudentDashboardActivity extends BaseActivity {
         refreshFees();
         refreshComplaints();
         loadProfileImage();
+        setupChatBadgeListener();
     }
 
     @Override
@@ -301,6 +318,98 @@ public class StudentDashboardActivity extends BaseActivity {
         if (roomListener != null) {
             roomListener.remove();
             roomListener = null;
+        }
+        if (chatBadgeRef != null && chatBadgeListener != null) {
+            chatBadgeRef.removeEventListener(chatBadgeListener);
+            chatBadgeListener = null;
+            chatBadgeRef = null;
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_dashboard, menu);
+        MenuItem chatItem = menu.findItem(R.id.action_chat);
+        if (chatItem != null) {
+            View actionView = chatItem.getActionView();
+            if (actionView != null) {
+                actionView.setOnClickListener(v -> {
+                    String roll = getActiveStudentRoll();
+                    Intent intent = new Intent(this, ChatActivity.class);
+                    intent.putExtra("student_roll", roll);
+                    intent.putExtra("chatting_with_role", "admin");
+                    startActivity(intent);
+                });
+                tvChatBadgeCount = actionView.findViewById(R.id.tvBadgeCount);
+                setupChatBadgeListener();
+            }
+        }
+        return true;
+    }
+
+    private String getActiveStudentRoll() {
+        String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
+                ? student.getRollNumber().trim()
+                : "";
+        if (TextUtils.isEmpty(roll)) {
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null) {
+                SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
+                roll = prefs.getString("student_roll", "").trim();
+            }
+        }
+        return roll;
+    }
+
+    private void setupChatBadgeListener() {
+        if (tvChatBadgeCount == null) {
+            return;
+        }
+        String roll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(roll)) {
+            return;
+        }
+        String cleanRoll = roll.replaceAll("\\s+", "");
+        DatabaseReference newRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+                .getReference("student_chat_meta")
+                .child(cleanRoll)
+                .child("unreadCount");
+
+        if (chatBadgeRef != null && chatBadgeListener != null) {
+            chatBadgeRef.removeEventListener(chatBadgeListener);
+        }
+        chatBadgeRef = newRef;
+        chatBadgeListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int count = 0;
+                Object val = snapshot.getValue();
+                if (val instanceof Number) {
+                    count = ((Number) val).intValue();
+                }
+                updateBadgeCount(tvChatBadgeCount, count);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        chatBadgeRef.addValueEventListener(chatBadgeListener);
+    }
+
+    private void updateBadgeCount(TextView tvBadgeCount, int count) {
+        if (tvBadgeCount == null) {
+            return;
+        }
+        if (count > 0) {
+            tvBadgeCount.setVisibility(View.VISIBLE);
+            if (count > 9) {
+                tvBadgeCount.setText("9+");
+            } else {
+                tvBadgeCount.setText(String.valueOf(count));
+            }
+        } else {
+            tvBadgeCount.setVisibility(View.GONE);
         }
     }
 
@@ -616,6 +725,7 @@ public class StudentDashboardActivity extends BaseActivity {
                             }
                         });
             }
+            setupChatBadgeListener();
         }
         if (!TextUtils.isEmpty(dept)) editor.putString("student_department", dept);
         if (!TextUtils.isEmpty(email)) editor.putString("student_email", email);

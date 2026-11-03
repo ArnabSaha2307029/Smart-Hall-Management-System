@@ -50,6 +50,17 @@ public class AdminChatListAdapter extends RecyclerView.Adapter<AdminChatListAdap
             holder.tvLastMessageTime.setVisibility(View.GONE);
         }
 
+        if (item.getUnreadCount() > 0) {
+            holder.tvAdminChatUnread.setVisibility(View.VISIBLE);
+            if (item.getUnreadCount() > 9) {
+                holder.tvAdminChatUnread.setText("9+");
+            } else {
+                holder.tvAdminChatUnread.setText(String.valueOf(item.getUnreadCount()));
+            }
+        } else {
+            holder.tvAdminChatUnread.setVisibility(View.GONE);
+        }
+
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onChatClick(item);
@@ -66,12 +77,14 @@ public class AdminChatListAdapter extends RecyclerView.Adapter<AdminChatListAdap
         final TextView tvStudentRoll;
         final TextView tvLastMessage;
         final TextView tvLastMessageTime;
+        final TextView tvAdminChatUnread;
 
         ChatViewHolder(@NonNull View itemView) {
             super(itemView);
             tvStudentRoll = itemView.findViewById(R.id.tvStudentRoll);
             tvLastMessage = itemView.findViewById(R.id.tvLastMessage);
             tvLastMessageTime = itemView.findViewById(R.id.tvLastMessageTime);
+            tvAdminChatUnread = itemView.findViewById(R.id.tvAdminChatUnread);
         }
     }
 }

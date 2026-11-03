@@ -73,12 +73,18 @@ public class AdminChatListActivity extends BaseActivity {
                     String roll = child.getKey();
                     String lastMessage = child.child("lastMessage").getValue(String.class);
                     Long timestamp = child.child("timestamp").getValue(Long.class);
+                    Object unreadVal = child.child("unreadCount").getValue();
+                    int unreadCount = 0;
+                    if (unreadVal instanceof Number) {
+                        unreadCount = ((Number) unreadVal).intValue();
+                    }
 
                     if (roll != null) {
                         chatList.add(new AdminChatItem(
                                 roll,
                                 lastMessage != null ? lastMessage : "",
-                                timestamp != null ? timestamp : 0L
+                                timestamp != null ? timestamp : 0L,
+                                unreadCount
                         ));
                     }
                 }

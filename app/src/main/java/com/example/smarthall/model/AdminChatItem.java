@@ -5,6 +5,7 @@ public class AdminChatItem {
     private String studentRoll;
     private String lastMessage;
     private long timestamp;
+    private int unreadCount;
 
     public AdminChatItem() {
     }
@@ -13,6 +14,13 @@ public class AdminChatItem {
         this.studentRoll = studentRoll;
         this.lastMessage = lastMessage;
         this.timestamp = timestamp;
+    }
+
+    public AdminChatItem(String studentRoll, String lastMessage, long timestamp, int unreadCount) {
+        this.studentRoll = studentRoll;
+        this.lastMessage = lastMessage;
+        this.timestamp = timestamp;
+        this.unreadCount = unreadCount;
     }
 
     public String getStudentRoll() {
@@ -37,5 +45,13 @@ public class AdminChatItem {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public int getUnreadCount() {
+        return unreadCount;
+    }
+
+    public void setUnreadCount(int unreadCount) {
+        this.unreadCount = unreadCount;
     }
 }

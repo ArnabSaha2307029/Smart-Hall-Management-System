@@ -21,8 +21,11 @@ import android.util.Base64;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -48,6 +51,7 @@ import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.ui.chat.AdminChatListActivity;
 import com.example.smarthall.ui.chat.AdminChatListActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
@@ -100,6 +104,9 @@ public class AdminDashboardActivity extends BaseActivity {
     private static final int TAB_NOTICES = 2;
     private int currentTab = TAB_STUDENTS;
     private ActivityResultLauncher<String> requestPermissionLauncher;
+    private ValueEventListener chatBadgeListener;
+    private DatabaseReference chatListBadgeRef;
+    private TextView tvChatBadgeCount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +114,11 @@ public class AdminDashboardActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityAdminDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        setSupportActionBar(binding.toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
 
         createNotificationChannels();
 
@@ -206,6 +218,9 @@ public class AdminDashboardActivity extends BaseActivity {
         }
         if (studentListener != null) {
             studentListener.remove();
+        }
+        if (chatListBadgeRef != null && chatBadgeListener != null) {
+            chatListBadgeRef.removeEventListener(chatBadgeListener);
         }
     }
 
@@ -874,5 +889,68 @@ public class AdminDashboardActivity extends BaseActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_dashboard, menu);
+        MenuItem chatItem = menu.findItem(R.id.action_chat);
+        if (chatItem != null) {
+            View actionView = chatItem.getActionView();
+            if (actionView != null) {
+                actionView.setOnClickListener(v -> {
+                    Intent intent = new Intent(this, AdminChatListActivity.class);
+                    startActivity(intent);
+                });
+                tvChatBadgeCount = actionView.findViewById(R.id.tvBadgeCount);
+                setupChatBadgeListener();
+            }
+        }
+        return true;
+    }
+
+    private void setupChatBadgeListener() {
+        if (tvChatBadgeCount == null) {
+            return;
+        }
+        chatListBadgeRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+                .getReference("admin_chat_list");
+        if (chatBadgeListener != null) {
+            chatListBadgeRef.removeEventListener(chatBadgeListener);
+        }
+        chatBadgeListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int totalUnread = 0;
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Object val = child.child("unreadCount").getValue();
+                    if (val instanceof Number) {
+                        totalUnread += ((Number) val).intValue();
+                    }
+                }
+                updateBadgeCount(tvChatBadgeCount, totalUnread);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        chatListBadgeRef.addValueEventListener(chatBadgeListener);
+    }
+
+    private void updateBadgeCount(TextView tvBadgeCount, int count) {
+        if (tvBadgeCount == null) {
+            return;
+        }
+        if (count > 0) {
+            tvBadgeCount.setVisibility(View.VISIBLE);
+            if (count > 9) {
+                tvBadgeCount.setText("9+");
+            } else {
+                tvBadgeCount.setText(String.valueOf(count));
+            }
+        } else {
+            tvBadgeCount.setVisibility(View.GONE);
+        }
     }
 }
