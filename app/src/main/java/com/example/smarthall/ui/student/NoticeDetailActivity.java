@@ -1,9 +1,17 @@
 package com.example.smarthall.ui.student;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
 
 import com.example.smarthall.databinding.ActivityNoticeDetailBinding;
 import com.example.smarthall.model.NoticeModel;
@@ -20,7 +28,11 @@ import java.util.Locale;
 
 public class NoticeDetailActivity extends BaseActivity {
 
+    private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
+
     private ActivityNoticeDetailBinding binding;
+    private String noticeId;
+    private String currentUserRole = "student";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,8 +48,11 @@ public class NoticeDetailActivity extends BaseActivity {
         }
         binding.toolbarNoticeDetail.setNavigationOnClickListener(v -> finish());
 
+        SharedPreferences prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+        currentUserRole = prefs.getString("user_role", "student");
+
         Intent intent = getIntent();
-        String noticeId = intent != null ? intent.getStringExtra("notice_id") : null;
+        noticeId = intent != null ? intent.getStringExtra("notice_id") : null;
         String title = intent != null ? intent.getStringExtra("title") : null;
         String message = intent != null ? intent.getStringExtra("message") : null;
         String poster = intent != null ? intent.getStringExtra("poster") : null;
@@ -59,11 +74,59 @@ public class NoticeDetailActivity extends BaseActivity {
             }
         }
 
+        setupDeleteButton();
+
         if (!TextUtils.isEmpty(title) || !TextUtils.isEmpty(message)) {
             populateUI(title, poster, timestamp, message);
         } else if (!TextUtils.isEmpty(noticeId)) {
             fetchNoticeFromFirebase(noticeId);
         }
+    }
+
+    private void setupDeleteButton() {
+        if ("admin".equalsIgnoreCase(currentUserRole)) {
+            binding.btnDeleteNotice.setVisibility(View.VISIBLE);
+            binding.btnDeleteNotice.setOnClickListener(v -> showDeleteNoticeConfirmation());
+        } else {
+            binding.btnDeleteNotice.setVisibility(View.GONE);
+        }
+    }
+
+    private void showDeleteNoticeConfirmation() {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Delete Notice")
+                .setMessage("Are you sure you want to delete this notice?")
+                .setPositiveButton("Delete", (d, which) -> deleteNotice())
+                .setNegativeButton("Cancel", (d, which) -> d.dismiss())
+                .create();
+        dialog.show();
+        if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Color.parseColor("#D32F2F"));
+        }
+        if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#757575"));
+        }
+    }
+
+    private void deleteNotice() {
+        if (TextUtils.isEmpty(noticeId)) {
+            Toast.makeText(this, "Cannot delete notice: Missing ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        binding.btnDeleteNotice.setEnabled(false);
+        FirebaseDatabase.getInstance(RTDB_URL).getReference("hall_notices").child(noticeId).removeValue();
+        FirebaseDatabase.getInstance(RTDB_URL).getReference("hall_announcements").child(noticeId).removeValue()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Toast.makeText(this, "Notice deleted", Toast.LENGTH_SHORT).show();
+                        finish();
+                    } else {
+                        binding.btnDeleteNotice.setEnabled(true);
+                        String error = task.getException() != null ? task.getException().getMessage() : "Failed to delete notice";
+                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void populateUI(String title, String poster, long timestamp, String message) {
@@ -79,16 +142,20 @@ public class NoticeDetailActivity extends BaseActivity {
         binding.tvDetailMessage.setText(message != null ? message : "");
     }
 
-    private void fetchNoticeFromFirebase(String noticeId) {
-        FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+    private void fetchNoticeFromFirebase(String id) {
+        this.noticeId = id;
+        FirebaseDatabase.getInstance(RTDB_URL)
                 .getReference("hall_announcements")
-                .child(noticeId)
+                .child(id)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot snapshot) {
                         if (snapshot.exists()) {
                             NoticeModel notice = snapshot.getValue(NoticeModel.class);
                             if (notice != null) {
+                                if (notice.getId() != null && !notice.getId().isEmpty()) {
+                                    noticeId = notice.getId();
+                                }
                                 populateUI(notice.getTitle(), notice.getPostedBy(), notice.getTimestamp(), notice.getMessage());
                             }
                         }

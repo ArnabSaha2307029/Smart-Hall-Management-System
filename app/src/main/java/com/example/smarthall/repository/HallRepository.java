@@ -105,20 +105,6 @@ public class HallRepository {
     }
 
     private void seedComplaints() {
-        complaints.add(new Complaint("C001", "S001", "Arnab Saha", "101",
-                "Water leakage in bathroom",
-                "There is a persistent water leakage from the shower tap in Room 101 bathroom. It has been leaking for 3 days and is wasting water.",
-                "13 Oct 2026", Complaint.STATUS_PENDING));
-
-        complaints.add(new Complaint("C002", "S002", "Rakib Hasan", "101",
-                "Broken ceiling fan",
-                "The ceiling fan in Room 101 stopped working since last week. The weather is hot and it is very uncomfortable to study and sleep.",
-                "11 Oct 2026", Complaint.STATUS_RESOLVED));
-
-        complaints.add(new Complaint("C003", "S003", "Fatima Akter", "102",
-                "Wi-Fi not working",
-                "The hall Wi-Fi connection has been very unstable for Room 102. It disconnects every few minutes making it impossible to attend online classes.",
-                "14 Oct 2026", Complaint.STATUS_PENDING));
     }
 
     public synchronized String authenticateUser(String userId, String password, String role) {

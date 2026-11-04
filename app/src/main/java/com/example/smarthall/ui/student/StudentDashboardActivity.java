@@ -52,6 +52,7 @@ import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
+import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
@@ -219,7 +220,15 @@ public class StudentDashboardActivity extends BaseActivity {
         student = new Student();
         student.setId(currentUser.getUid());
         student.setName(prefs.getString("student_name", "Student"));
-        student.setRollNumber(prefs.getString("student_roll", ""));
+        String cachedRoll = prefs.getString("student_roll", "");
+        student.setRollNumber(cachedRoll);
+        if (!cachedRoll.isEmpty()) {
+            getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("user_roll", cachedRoll)
+                    .putString("student_roll", cachedRoll)
+                    .apply();
+        }
         student.setDepartment(prefs.getString("student_department", ""));
         student.setEmail(prefs.getString("student_email", currentUser.getEmail() != null ? currentUser.getEmail() : ""));
         student.setPhone(prefs.getString("student_phone", ""));
@@ -545,7 +554,8 @@ public class StudentDashboardActivity extends BaseActivity {
         });
         binding.btnNavSubmitComplaint.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
-            showSubmitComplaintDialog();
+            Intent intent = new Intent(this, ComplaintsListActivity.class);
+            startActivity(intent);
         });
         binding.btnNavChatWithAdmin.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -710,6 +720,11 @@ public class StudentDashboardActivity extends BaseActivity {
         if (roll != null && !roll.trim().isEmpty()) {
             final String studentRoll = roll.trim().replaceAll("\\s+", "");
             editor.putString("student_roll", studentRoll);
+            getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("user_roll", studentRoll)
+                    .putString("student_roll", studentRoll)
+                    .apply();
             if (student != null) {
                 student.setRollNumber(studentRoll);
             }
@@ -1000,7 +1015,14 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void setupSubmitComplaintButton() {
-        binding.btnSubmitComplaint.setOnClickListener(v -> showSubmitComplaintDialog());
+        binding.btnSubmitComplaint.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ComplaintsListActivity.class);
+            startActivity(intent);
+        });
+        binding.cardComplaints.setOnClickListener(v -> {
+            Intent intent = new Intent(this, ComplaintsListActivity.class);
+            startActivity(intent);
+        });
     }
 
     private void showSubmitComplaintDialog() {
