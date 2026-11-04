@@ -46,14 +46,15 @@ import com.example.smarthall.model.Student;
 import com.example.smarthall.network.FcmNotificationSender;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
-import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
+import com.example.smarthall.ui.adapters.GlobalComplaintAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.chat.AdminChatListActivity;
-import com.example.smarthall.ui.chat.AdminChatListActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
+import com.example.smarthall.ui.complaint.ComplaintDetailActivity;
+import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.MealCutoffUtil;
@@ -89,7 +90,8 @@ public class AdminDashboardActivity extends BaseActivity {
     private ActivityAdminDashboardBinding binding;
     private HallRepository repository;
     private StudentAdapter studentAdapter;
-    private ComplaintAdapter complaintAdapter;
+    private GlobalComplaintAdapter complaintAdapter;
+    private List<Complaint> complaintList = new ArrayList<>();
     private FirebaseNoticeAdapter noticeAdapter;
     private List<NoticeModel> noticeList = new ArrayList<>();
     private DatabaseReference noticeRef;
@@ -107,6 +109,8 @@ public class AdminDashboardActivity extends BaseActivity {
     private ValueEventListener chatBadgeListener;
     private DatabaseReference chatListBadgeRef;
     private TextView tvChatBadgeCount;
+    private DatabaseReference complaintsRef;
+    private ValueEventListener complaintsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -158,6 +162,7 @@ public class AdminDashboardActivity extends BaseActivity {
         setupBroadcastNotice();
         setupNoticesListener();
         setupStudentsListener();
+        setupComplaintsListener();
         RoomAllocationManager.seedDefaultRoomsIfEmpty(null);
         switchTab(TAB_STUDENTS);
     }
@@ -221,6 +226,9 @@ public class AdminDashboardActivity extends BaseActivity {
         }
         if (chatListBadgeRef != null && chatBadgeListener != null) {
             chatListBadgeRef.removeEventListener(chatBadgeListener);
+        }
+        if (complaintsRef != null && complaintsListener != null) {
+            complaintsRef.removeEventListener(complaintsListener);
         }
     }
 
@@ -295,7 +303,8 @@ public class AdminDashboardActivity extends BaseActivity {
         });
         binding.btnNavComplaints.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
-            switchTab(TAB_COMPLAINTS);
+            Intent intent = new Intent(AdminDashboardActivity.this, ComplaintsListActivity.class);
+            startActivity(intent);
         });
         binding.btnNavStudentMessages.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -328,12 +337,17 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.rvStudents.setLayoutManager(new LinearLayoutManager(this));
         binding.rvStudents.setAdapter(studentAdapter);
 
-        complaintAdapter = new ComplaintAdapter(repository.getAllComplaints(),
-                complaint -> {
-                    repository.toggleComplaintStatus(complaint.getId());
-                    refreshComplaints();
-                    Toast.makeText(this, "Status updated", Toast.LENGTH_SHORT).show();
-                }, true);
+        complaintAdapter = new GlobalComplaintAdapter(complaintList, complaint -> {
+            Intent intent = new Intent(AdminDashboardActivity.this, ComplaintDetailActivity.class);
+            intent.putExtra("complaint_id", complaint.getComplaintId());
+            intent.putExtra("title", complaint.getTitle());
+            intent.putExtra("description", complaint.getDescription());
+            intent.putExtra("student_roll", complaint.getStudentRoll());
+            intent.putExtra("student_phone", complaint.getStudentPhone());
+            intent.putExtra("status", complaint.getStatus());
+            intent.putExtra("timestamp", complaint.getTimestamp());
+            startActivity(intent);
+        });
         binding.rvComplaints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvComplaints.setAdapter(complaintAdapter);
 
@@ -520,11 +534,9 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void refreshComplaints() {
-        List<Complaint> complaints = repository.getAllComplaints();
-        complaintAdapter.updateData(complaints);
-        binding.tvStatComplaints.setText(String.valueOf(complaints.size()));
-        binding.tvEmptyComplaints.setVisibility(complaints.isEmpty() ? View.VISIBLE : View.GONE);
-        binding.rvComplaints.setVisibility(complaints.isEmpty() ? View.GONE : View.VISIBLE);
+        binding.tvStatComplaints.setText(String.valueOf(complaintList.size()));
+        binding.tvEmptyComplaints.setVisibility(complaintList.isEmpty() ? View.VISIBLE : View.GONE);
+        binding.rvComplaints.setVisibility(complaintList.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     private void refreshNotices() {
@@ -952,5 +964,55 @@ public class AdminDashboardActivity extends BaseActivity {
         } else {
             tvBadgeCount.setVisibility(View.GONE);
         }
+    }
+
+    private void setupComplaintsListener() {
+        complaintsRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+                .getReference("complaints");
+        complaintsListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                long total = snapshot.getChildrenCount();
+                int pending = 0;
+                int resolved = 0;
+                complaintList.clear();
+
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    String status = child.child("status").getValue(String.class);
+                    if (status != null && status.equalsIgnoreCase("resolved")) {
+                        resolved++;
+                    } else {
+                        pending++;
+                    }
+
+                    String id = child.child("complaintId").getValue(String.class);
+                    if (id == null) {
+                        id = child.getKey();
+                    }
+                    String title = child.child("title").getValue(String.class);
+                    String description = child.child("description").getValue(String.class);
+                    String studentRoll = child.child("studentRoll").getValue(String.class);
+                    String studentPhone = child.child("studentPhone").getValue(String.class);
+                    Long timestampVal = child.child("timestamp").getValue(Long.class);
+                    long timestamp = timestampVal != null ? timestampVal : 0L;
+
+                    Complaint complaint = new Complaint(id, title, description, studentRoll, studentPhone, status, timestamp);
+                    complaintList.add(complaint);
+                }
+
+                Collections.sort(complaintList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+
+                binding.tvComplaintAnalytics.setText("Total Complaints: " + total + " | Pending: " + pending + " | Resolved: " + resolved);
+                binding.tvStatComplaints.setText(String.valueOf(total));
+
+                complaintAdapter.notifyDataSetChanged();
+                refreshComplaints();
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        complaintsRef.addValueEventListener(complaintsListener);
     }
 }

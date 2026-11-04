@@ -67,25 +67,19 @@ public class ComplaintAdapter extends RecyclerView.Adapter<ComplaintAdapter.Comp
             binding.tvStudentInfo.setText(complaint.getStudentName() + " | Room " + complaint.getRoomNo());
             binding.tvComplaintDate.setText(complaint.getDate());
 
-            android.util.TypedValue typedValue = new android.util.TypedValue();
-            int colorPrimary = 0xFFC62828;
-            if (itemView.getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
-                colorPrimary = typedValue.data;
-            }
-            int colorContainer = 0xFFFFCDD2;
-            if (itemView.getContext().getTheme().resolveAttribute(com.google.android.material.R.attr.colorPrimaryContainer, typedValue, true)) {
-                colorContainer = typedValue.data;
-            }
-
             if (Complaint.STATUS_RESOLVED.equals(complaint.getStatus())) {
                 binding.tvComplaintStatus.setText("RESOLVED");
-                binding.tvComplaintStatus.setBackgroundColor(colorContainer);
-                binding.tvComplaintStatus.setTextColor(colorPrimary);
+                binding.tvComplaintStatus.setBackgroundResource(com.example.smarthall.R.drawable.bg_badge_resolved);
+                android.util.TypedValue tv = new android.util.TypedValue();
+                itemView.getContext().getTheme().resolveAttribute(android.R.attr.textColorSecondary, tv, true);
+                binding.tvComplaintStatus.setTextColor(tv.data);
                 if (showAdminControls) binding.btnToggleStatus.setText("Reopen");
             } else {
                 binding.tvComplaintStatus.setText("PENDING");
-                binding.tvComplaintStatus.setBackgroundColor(colorContainer);
-                binding.tvComplaintStatus.setTextColor(colorPrimary);
+                binding.tvComplaintStatus.setBackgroundResource(com.example.smarthall.R.drawable.bg_badge_pending);
+                android.util.TypedValue tv = new android.util.TypedValue();
+                itemView.getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true);
+                binding.tvComplaintStatus.setTextColor(tv.data);
                 if (showAdminControls) binding.btnToggleStatus.setText("Resolve");
             }
 

@@ -18,6 +18,7 @@ import androidx.core.app.TaskStackBuilder;
 import com.example.smarthall.R;
 import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
+import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.student.NoticeDetailActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -49,7 +50,14 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
         }
 
         String type = data.get("type");
-        if ("chat".equals(type)) {
+        if ("complaint".equals(type)) {
+            String sender = remoteMessage.getData().getOrDefault("sender", "");
+            if (!currentUserRole.isEmpty() && currentUserRole.equalsIgnoreCase(sender)) {
+                Log.d("FCM_FILTER", "Ignored self-sent complaint message");
+                return;
+            }
+            handleComplaintMessage(data);
+        } else if ("chat".equals(type)) {
             String sender = remoteMessage.getData().getOrDefault("sender", "");
             if (!currentUserRole.isEmpty() && currentUserRole.equalsIgnoreCase(sender)) {
                 Log.d("FCM_FILTER", "Ignored self-sent chat message");
@@ -62,6 +70,62 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
                 return;
             }
             handleNoticeMessage(data);
+        }
+    }
+
+    private void handleComplaintMessage(Map<String, String> data) {
+        String complaintId = data.get("complaint_id");
+        String title = data.get("title");
+        String action = data.get("action");
+        String studentRoll = data.get("student_roll");
+
+        SharedPreferences prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+        String localRole = prefs.getString("user_role", "");
+        boolean isAdmin = "admin".equalsIgnoreCase(localRole);
+
+        String notifTitle;
+        String notifBody;
+        if ("complaint_resolved".equalsIgnoreCase(action)) {
+            notifTitle = "Complaint Resolved";
+            notifBody = title != null && !title.isEmpty() ? ("Resolved: " + title) : "Your complaint has been marked as resolved.";
+        } else {
+            notifTitle = "New Complaint Submitted";
+            notifBody = (studentRoll != null && !studentRoll.isEmpty() ? ("Roll " + studentRoll + ": ") : "") + (title != null ? title : "");
+        }
+
+        createNotificationChannels();
+
+        Intent intent = new Intent(this, ComplaintsListActivity.class);
+        intent.putExtra("complaint_id", complaintId);
+
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        if (isAdmin) {
+            stackBuilder.addNextIntent(new Intent(this, AdminDashboardActivity.class));
+        } else {
+            stackBuilder.addNextIntent(new Intent(this, StudentDashboardActivity.class));
+        }
+        stackBuilder.addNextIntent(intent);
+
+        PendingIntent pendingIntent = stackBuilder.getPendingIntent(
+                (int) System.currentTimeMillis(),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTICE_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notifications)
+                .setContentTitle(notifTitle)
+                .setContentText(notifBody)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(notifBody))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null) {
+            nm.notify((int) System.currentTimeMillis(), builder.build());
         }
     }
 

@@ -671,7 +671,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Submit Complaint"
+                    android:text="Complaints"
                     android:textAlignment="textStart"
                     android:textColor="#212121"
                     android:textSize="14sp"

@@ -101,6 +101,16 @@
             android:parentActivityName=".ui.admin.AdminDashboardActivity" />
 
         <activity
+            android:name=".ui.complaint.ComplaintsListActivity"
+            android:exported="false"
+            android:label="Complaints" />
+
+        <activity
+            android:name=".ui.complaint.ComplaintDetailActivity"
+            android:exported="false"
+            android:label="Complaint Details" />
+
+        <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
