@@ -14,6 +14,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -356,7 +357,8 @@ public class PaymentGatewayBottomSheet extends BottomSheetDialogFragment {
 
             Context context = getContext();
             if (context != null) {
-                Toast.makeText(context, "Payment execution failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("PaymentGateway", "Payment execution failed", e);
+                Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
             }
         });
     }

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -213,7 +214,8 @@ public class UnpaidBillActivity extends BaseActivity {
             public void onError(Exception e) {
                 binding.pbLoadingBill.setVisibility(View.GONE);
                 binding.layoutBillContent.setVisibility(View.VISIBLE);
-                Toast.makeText(UnpaidBillActivity.this, "Failed to calculate bill: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("UnpaidBill", "Failed to calculate bill", e);
+                Toast.makeText(UnpaidBillActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
             }
         });
     }

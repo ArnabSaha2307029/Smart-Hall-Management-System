@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Toast;
@@ -239,6 +240,8 @@ public class ComplaintDetailActivity extends BaseActivity {
             Intent chatIntent = new Intent(this, ChatActivity.class);
             chatIntent.putExtra("student_roll", studentRoll != null ? studentRoll : "");
             chatIntent.putExtra("chatting_with_role", "student");
+            chatIntent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+            chatIntent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
             startActivity(chatIntent);
         });
 
@@ -284,8 +287,8 @@ public class ComplaintDetailActivity extends BaseActivity {
             if (task.isSuccessful()) {
                 binding.etCommentInput.setText("");
             } else {
-                String error = task.getException() != null ? task.getException().getMessage() : "Failed to post comment";
-                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                Log.e("ComplaintDetail", "Failed to post comment", task.getException());
+                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -327,8 +330,8 @@ public class ComplaintDetailActivity extends BaseActivity {
                         finish();
                     } else {
                         binding.btnDeleteComplaint.setEnabled(true);
-                        String error = task.getException() != null ? task.getException().getMessage() : "Failed to delete complaint";
-                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                        Log.e("ComplaintDetail", "Failed to delete complaint", task.getException());
+                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -352,8 +355,8 @@ public class ComplaintDetailActivity extends BaseActivity {
                 );
                 Toast.makeText(this, "Complaint marked as resolved", Toast.LENGTH_SHORT).show();
             } else {
-                String error = task.getException() != null ? task.getException().getMessage() : "Failed to update";
-                Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                Log.e("ComplaintDetail", "Failed to update complaint status", task.getException());
+                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -435,8 +435,8 @@ public class AdminDashboardActivity extends BaseActivity {
                     binding.etNoticeMessage.setText("");
                     Toast.makeText(AdminDashboardActivity.this, "Emergency notice broadcasted live", Toast.LENGTH_SHORT).show();
                 } else {
-                    String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to broadcast notice";
-                    Toast.makeText(AdminDashboardActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    Log.e("AdminDashboard", "Failed to broadcast notice", task.getException());
+                    Toast.makeText(AdminDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                 }
             });
         });
@@ -592,8 +592,8 @@ public class AdminDashboardActivity extends BaseActivity {
                     FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, id, title, message, poster, noticeModel.getTimestamp());
                     Toast.makeText(AdminDashboardActivity.this, "Notice published successfully", Toast.LENGTH_SHORT).show();
                 } else {
-                    String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to publish notice";
-                    Toast.makeText(AdminDashboardActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    Log.e("AdminDashboard", "Failed to publish notice", task.getException());
+                    Toast.makeText(AdminDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -739,6 +739,8 @@ public class AdminDashboardActivity extends BaseActivity {
             Intent intent = new Intent(this, ChatActivity.class);
             intent.putExtra("student_roll", student.getRollNumber());
             intent.putExtra("chatting_with_role", "student");
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
             startActivity(intent);
         });
 
@@ -887,7 +889,8 @@ public class AdminDashboardActivity extends BaseActivity {
                 dialog.dismiss();
             }).addOnFailureListener(e -> {
                 dialogBinding.btnApplyClosure.setEnabled(true);
-                Toast.makeText(this, "Failed to update schedule: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("AdminDashboard", "Failed to update schedule", e);
+                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
             });
         });
 

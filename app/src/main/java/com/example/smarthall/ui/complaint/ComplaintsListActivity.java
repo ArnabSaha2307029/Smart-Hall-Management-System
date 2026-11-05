@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -204,8 +205,8 @@ public class ComplaintsListActivity extends BaseActivity {
                     Toast.makeText(ComplaintsListActivity.this, "Complaint submitted successfully", Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
                 } else {
-                    String error = task.getException() != null ? task.getException().getMessage() : "Failed to submit";
-                    Toast.makeText(ComplaintsListActivity.this, error, Toast.LENGTH_SHORT).show();
+                    Log.e("ComplaintsList", "Failed to submit complaint", task.getException());
+                    Toast.makeText(ComplaintsListActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                 }
             });
         });

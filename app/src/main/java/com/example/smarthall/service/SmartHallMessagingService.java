@@ -161,6 +161,8 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
         intent.setAction("OPEN_CHAT");
         intent.putExtra("student_roll", studentRoll);
         intent.putExtra("chatting_with_role", isAdmin ? "student" : "admin");
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         if (isAdmin) {

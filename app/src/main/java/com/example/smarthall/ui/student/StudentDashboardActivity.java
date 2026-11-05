@@ -57,9 +57,23 @@ import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.ThemeHelper;
+import com.facebook.login.LoginManager;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.tasks.Task;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -78,6 +92,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -108,6 +123,10 @@ public class StudentDashboardActivity extends BaseActivity {
     private ValueEventListener chatBadgeListener;
     private DatabaseReference chatBadgeRef;
     private TextView tvChatBadgeCount;
+    private GoogleSignInClient googleLinkClient;
+    private ActivityResultLauncher<Intent> googleLinkLauncher;
+    private String linkedGoogleEmail;
+    private NavigationView navigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,6 +134,31 @@ public class StudentDashboardActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityStudentDashboardBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        googleLinkClient = GoogleSignIn.getClient(this, gso);
+
+        googleLinkLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                    try {
+                        GoogleSignInAccount account = task.getResult(ApiException.class);
+                        if (account != null && account.getIdToken() != null) {
+                            linkGoogleAccount(account);
+                        }
+                    } catch (ApiException e) {
+                        if (e.getStatusCode() != GoogleSignInStatusCodes.SIGN_IN_CANCELLED
+                                && e.getStatusCode() != CommonStatusCodes.CANCELED) {
+                            Log.e("AuthError", "Google sign-in error", e);
+                            Toast.makeText(StudentDashboardActivity.this, "Google sign-in could not be completed. Please try again.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
 
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
@@ -235,6 +279,9 @@ public class StudentDashboardActivity extends BaseActivity {
         student.setAllocatedRoom(prefs.getString("student_room", ""));
         student.setBoarderNo(prefs.getString("boarder_no", ""));
         student.setDining(prefs.getString("dining_hall", ""));
+        linkedGoogleEmail = prefs.getString("linked_google_email", "");
+        navigationView = binding.navigationView;
+        tvChatBadgeCount = binding.tvTopChatBadgeCount;
 
         setupHeader();
         setupNavigationDrawer();
@@ -269,6 +316,7 @@ public class StudentDashboardActivity extends BaseActivity {
         refreshComplaints();
         loadProfileImage();
         setupChatBadgeListener();
+        updateDrawerMenuState();
     }
 
     @Override
@@ -336,24 +384,14 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_dashboard, menu);
-        MenuItem chatItem = menu.findItem(R.id.action_chat);
-        if (chatItem != null) {
-            View actionView = chatItem.getActionView();
-            if (actionView != null) {
-                actionView.setOnClickListener(v -> {
-                    String roll = getActiveStudentRoll();
-                    Intent intent = new Intent(this, ChatActivity.class);
-                    intent.putExtra("student_roll", roll);
-                    intent.putExtra("chatting_with_role", "admin");
-                    startActivity(intent);
-                });
-                tvChatBadgeCount = actionView.findViewById(R.id.tvBadgeCount);
-                setupChatBadgeListener();
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            if (binding.drawerLayout != null) {
+                binding.drawerLayout.openDrawer(GravityCompat.START);
             }
+            return true;
         }
-        return true;
+        return super.onOptionsItemSelected(item);
     }
 
     private String getActiveStudentRoll() {
@@ -371,6 +409,9 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void setupChatBadgeListener() {
+        if (tvChatBadgeCount == null && binding != null) {
+            tvChatBadgeCount = binding.tvTopChatBadgeCount;
+        }
         if (tvChatBadgeCount == null) {
             return;
         }
@@ -380,9 +421,8 @@ public class StudentDashboardActivity extends BaseActivity {
         }
         String cleanRoll = roll.replaceAll("\\s+", "");
         DatabaseReference newRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
-                .getReference("student_chat_meta")
-                .child(cleanRoll)
-                .child("unreadCount");
+                .getReference("chats")
+                .child(cleanRoll);
 
         if (chatBadgeRef != null && chatBadgeListener != null) {
             chatBadgeRef.removeEventListener(chatBadgeListener);
@@ -392,9 +432,12 @@ public class StudentDashboardActivity extends BaseActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 int count = 0;
-                Object val = snapshot.getValue();
-                if (val instanceof Number) {
-                    count = ((Number) val).intValue();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    String senderRole = child.child("senderRole").getValue(String.class);
+                    Boolean isRead = child.child("read").getValue(Boolean.class);
+                    if ("admin".equalsIgnoreCase(senderRole) && (isRead == null || !isRead)) {
+                        count++;
+                    }
                 }
                 updateBadgeCount(tvChatBadgeCount, count);
             }
@@ -412,8 +455,8 @@ public class StudentDashboardActivity extends BaseActivity {
         }
         if (count > 0) {
             tvBadgeCount.setVisibility(View.VISIBLE);
-            if (count > 9) {
-                tvBadgeCount.setText("9+");
+            if (count > 99) {
+                tvBadgeCount.setText("99+");
             } else {
                 tvBadgeCount.setText(String.valueOf(count));
             }
@@ -536,6 +579,17 @@ public class StudentDashboardActivity extends BaseActivity {
 
     private void setupHeader() {
         binding.btnMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+        View.OnClickListener chatClickListener = v -> {
+            String roll = getActiveStudentRoll();
+            Intent intent = new Intent(this, ChatActivity.class);
+            intent.putExtra("student_roll", roll);
+            intent.putExtra("chatting_with_role", "admin");
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
+            startActivity(intent);
+        };
+        binding.layoutTopChat.setOnClickListener(chatClickListener);
+        binding.btnTopChat.setOnClickListener(chatClickListener);
         binding.btnTopNotices.setOnClickListener(v -> {
             Intent intent = new Intent(this, NoticeListActivity.class);
             startActivity(intent);
@@ -572,6 +626,8 @@ public class StudentDashboardActivity extends BaseActivity {
             Intent intent = new Intent(this, ChatActivity.class);
             intent.putExtra("student_roll", roll);
             intent.putExtra("chatting_with_role", "admin");
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
             startActivity(intent);
         });
         binding.btnNavFeeRecords.setOnClickListener(v -> {
@@ -586,6 +642,29 @@ public class StudentDashboardActivity extends BaseActivity {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             logout();
         });
+        if (navigationView != null) {
+            navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+                @Override
+                public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                    int id = item.getItemId();
+                    if (id == R.id.nav_link_google) {
+                        if (googleLinkClient != null) {
+                            googleLinkClient.signOut().addOnCompleteListener(StudentDashboardActivity.this, task -> {
+                                googleLinkLauncher.launch(googleLinkClient.getSignInIntent());
+                            });
+                        }
+                        binding.drawerLayout.closeDrawer(GravityCompat.START);
+                        return true;
+                    } else if (id == R.id.nav_logout) {
+                        binding.drawerLayout.closeDrawer(GravityCompat.START);
+                        logout();
+                        return true;
+                    }
+                    return false;
+                }
+            });
+            updateDrawerMenuState();
+        }
     }
 
     @Override
@@ -635,6 +714,7 @@ public class StudentDashboardActivity extends BaseActivity {
             if (cleanDining.isEmpty()) cleanDining = "East";
             binding.tvDiningHall.setText("Dining: " + cleanDining);
         }
+        updateDrawerMenuState();
     }
 
     private void loadStudentDataFromFirestore() {
@@ -753,6 +833,13 @@ public class StudentDashboardActivity extends BaseActivity {
             editor.putString("dining_hall", cleanDining);
         }
         editor.apply();
+
+        linkedGoogleEmail = doc.getString("linkedGoogleEmail");
+        if (!TextUtils.isEmpty(linkedGoogleEmail)) {
+            editor.putString("linked_google_email", linkedGoogleEmail);
+        }
+        editor.apply();
+        updateDrawerMenuState();
 
         setupHeader();
         setupNavigationDrawer();
@@ -1083,6 +1170,12 @@ public class StudentDashboardActivity extends BaseActivity {
     private void logout() {
         getSharedPreferences("user_session", Context.MODE_PRIVATE).edit().clear().apply();
         FirebaseAuth.getInstance().signOut();
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        GoogleSignIn.getClient(this, gso).signOut();
+        LoginManager.getInstance().logOut();
         navigateToLogin();
     }
 
@@ -1393,5 +1486,74 @@ public class StudentDashboardActivity extends BaseActivity {
         binding.tvBoarderNo.setText("Boarder No: " + boarderNo);
         binding.tvDiningHall.setText("Dining: " + cleanDining);
         prefs.edit().putString("boarder_no", boarderNo).putString("dining_hall", cleanDining).apply();
+    }
+
+    private void linkGoogleAccount(GoogleSignInAccount account) {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            return;
+        }
+        AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
+        user.linkWithCredential(credential).addOnCompleteListener(this, task -> {
+            if (task.isSuccessful()) {
+                String email = account.getEmail();
+                if (TextUtils.isEmpty(email)) {
+                    email = user.getEmail();
+                }
+                linkedGoogleEmail = email != null ? email : "";
+                getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("linked_google_email", linkedGoogleEmail)
+                        .apply();
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("linkedGoogleEmail", linkedGoogleEmail);
+                FirebaseFirestore.getInstance().collection("students").document(user.getUid())
+                        .set(updates, SetOptions.merge())
+                        .addOnCompleteListener(t -> {
+                            Toast.makeText(StudentDashboardActivity.this, "Account linked successfully", Toast.LENGTH_SHORT).show();
+                            updateDrawerMenuState();
+                        });
+            } else {
+                Log.e("AuthError", "Google link failed", task.getException());
+                if (task.getException() instanceof FirebaseAuthUserCollisionException) {
+                    Toast.makeText(StudentDashboardActivity.this, "This account is already linked to another user.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(StudentDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void updateDrawerMenuState() {
+        if (navigationView == null) {
+            return;
+        }
+        Menu navMenu = navigationView.getMenu();
+        if (navMenu == null) {
+            return;
+        }
+        MenuItem googleItem = navMenu.findItem(R.id.nav_link_google);
+
+        boolean isGoogleLinked = !TextUtils.isEmpty(linkedGoogleEmail);
+
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            for (UserInfo userInfo : currentUser.getProviderData()) {
+                if ("google.com".equals(userInfo.getProviderId())) {
+                    isGoogleLinked = true;
+                    break;
+                }
+            }
+        }
+
+        if (googleItem != null) {
+            if (isGoogleLinked) {
+                googleItem.setTitle(getString(R.string.btn_google_linked));
+                googleItem.setEnabled(false);
+            } else {
+                googleItem.setTitle(getString(R.string.btn_link_google));
+                googleItem.setEnabled(true);
+            }
+        }
     }
 }

@@ -51,6 +51,47 @@
                 app:contentInsetStart="0dp"
                 app:contentInsetEnd="0dp" />
 
+            <FrameLayout
+                android:id="@+id/layoutTopChat"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageButton
+                    android:id="@+id/btnTopChat"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:contentDescription="Chat with Admin"
+                    android:focusable="false"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_chat"
+                    app:tint="#FFFFFF" />
+
+                <TextView
+                    android:id="@+id/tvTopChatBadgeCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/bg_badge"
+                    android:gravity="center"
+                    android:minWidth="16dp"
+                    android:minHeight="16dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
             <ImageButton
                 android:id="@+id/btnTopNotices"
                 android:layout_width="40dp"
@@ -729,6 +770,15 @@
                     android:layout_marginTop="8dp"
                     android:layout_marginBottom="8dp" />
 
+                <com.google.android.material.navigation.NavigationView
+                    android:id="@+id/navigationView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    app:itemIconTint="?attr/colorPrimary"
+                    app:itemTextColor="#212121"
+                    app:menu="@menu/student_drawer_menu" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnNavLogout"
                     style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -742,7 +792,8 @@
                     android:padding="12dp"
                     app:icon="@drawable/ic_logout"
                     app:iconGravity="textStart"
-                    app:iconTint="?attr/colorPrimary" />
+                    app:iconTint="?attr/colorPrimary"
+                    android:visibility="gone" />
 
             </LinearLayout>
         </ScrollView>

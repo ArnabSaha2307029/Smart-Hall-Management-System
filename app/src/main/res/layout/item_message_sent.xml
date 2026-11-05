@@ -10,6 +10,7 @@
     android:paddingBottom="4dp">
 
     <LinearLayout
+        android:id="@+id/layoutSentBubble"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_chat_sent"
@@ -32,7 +33,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginTop="4dp"
-            android:textColor="#FFCDD2"
+            android:textColor="#B3FFFFFF"
             android:textSize="10sp" />
 
     </LinearLayout>

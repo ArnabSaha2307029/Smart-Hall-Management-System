@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:id="@+id/group_social_links">
+        <item
+            android:id="@+id/nav_link_google"
+            android:title="@string/btn_link_google"
+            android:icon="@drawable/ic_baseline_link_24" />
+    </group>
+    <group android:id="@+id/group_logout">
+        <item
+            android:id="@+id/nav_logout"
+            android:title="@string/btn_logout"
+            android:icon="@drawable/ic_logout" />
+    </group>
+</menu>

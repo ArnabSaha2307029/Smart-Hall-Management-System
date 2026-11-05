@@ -245,7 +245,7 @@ public class PdfReceiptGenerator {
         } catch (IOException e) {
             document.close();
             Log.e("PDF_GEN", "Failed to write local document copy", e);
-            Toast.makeText(context, "Failed to generate PDF: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "An unexpected error occurred. Please try again.", Toast.LENGTH_LONG).show();
             return null;
         } finally {
             document.close();

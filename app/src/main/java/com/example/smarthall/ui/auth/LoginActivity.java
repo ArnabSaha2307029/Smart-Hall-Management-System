@@ -4,16 +4,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.credentials.CredentialManager;
-import androidx.credentials.CredentialManagerCallback;
-import androidx.credentials.CustomCredential;
-import androidx.credentials.GetCredentialRequest;
-import androidx.credentials.GetCredentialResponse;
-import androidx.credentials.exceptions.GetCredentialException;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityLoginBinding;
@@ -22,22 +20,39 @@ import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
 import com.example.smarthall.util.ThemeHelper;
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import com.facebook.AccessToken;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.CommonStatusCodes;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.Arrays;
+
 public class LoginActivity extends BaseActivity {
 
     private ActivityLoginBinding binding;
     private HallRepository repository;
     private FirebaseAuth mAuth;
-    private CredentialManager credentialManager;
     private FirebaseFirestore db;
+    private GoogleSignInClient mGoogleSignInClient;
+    private ActivityResultLauncher<Intent> googleSignInLauncher;
+    private CallbackManager callbackManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,8 +63,57 @@ public class LoginActivity extends BaseActivity {
 
         repository = HallRepository.getInstance();
         mAuth = FirebaseAuth.getInstance();
-        credentialManager = CredentialManager.create(this);
         db = FirebaseFirestore.getInstance();
+
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
+
+        googleSignInLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
+                    try {
+                        GoogleSignInAccount account = task.getResult(ApiException.class);
+                        if (account != null && account.getIdToken() != null) {
+                            firebaseAuthWithGoogle(account.getIdToken());
+                        } else {
+                            restoreLoginForm();
+                        }
+                    } catch (ApiException e) {
+                        if (e.getStatusCode() == GoogleSignInStatusCodes.SIGN_IN_CANCELLED
+                                || e.getStatusCode() == CommonStatusCodes.CANCELED) {
+                            restoreLoginForm();
+                        } else {
+                            Log.e("AuthError", "Google sign-in error", e);
+                            Toast.makeText(LoginActivity.this, "Google sign-in could not be completed. Please try again.", Toast.LENGTH_SHORT).show();
+                            restoreLoginForm();
+                        }
+                    }
+                }
+        );
+
+        callbackManager = CallbackManager.Factory.create();
+        LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                handleFacebookAccessToken(loginResult.getAccessToken());
+            }
+
+            @Override
+            public void onCancel() {
+                restoreLoginForm();
+            }
+
+            @Override
+            public void onError(@NonNull FacebookException error) {
+                Log.e("AuthError", "Facebook sign-in error", error);
+                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
+                restoreLoginForm();
+            }
+        });
 
         setupClickListeners();
 
@@ -59,6 +123,14 @@ public class LoginActivity extends BaseActivity {
             binding.progressBar.setVisibility(View.VISIBLE);
             fetchUserRoleAndNavigate(currentUser.getUid());
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (callbackManager != null) {
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void setupClickListeners() {
@@ -79,7 +151,19 @@ public class LoginActivity extends BaseActivity {
         });
 
         binding.btnLogin.setOnClickListener(v -> attemptLogin());
-        binding.btnGoogleSignIn.setOnClickListener(v -> launchGoogleSignIn());
+
+        binding.btnGoogleSignIn.setOnClickListener(v -> {
+            binding.progressBar.setVisibility(View.VISIBLE);
+            mGoogleSignInClient.signOut().addOnCompleteListener(this, task -> {
+                Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                googleSignInLauncher.launch(signInIntent);
+            });
+        });
+
+        binding.btnFacebookSignIn.setOnClickListener(v -> {
+            binding.progressBar.setVisibility(View.VISIBLE);
+            LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("email", "public_profile"));
+        });
     }
 
     private void attemptLogin() {
@@ -129,8 +213,8 @@ public class LoginActivity extends BaseActivity {
                     restoreLoginForm();
                 }
             } else {
-                String errorMsg = task.getException() != null ? task.getException().getMessage() : "Authentication failed";
-                Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                Log.e("AuthError", "Email sign-in failed", task.getException());
+                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
                 restoreLoginForm();
             }
         });
@@ -165,16 +249,42 @@ public class LoginActivity extends BaseActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Unknown user role: " + role, Toast.LENGTH_SHORT).show();
+                        Log.e("AuthError", "Unknown user role: " + role);
+                        Toast.makeText(LoginActivity.this, "An unexpected error occurred. Please try again.", Toast.LENGTH_SHORT).show();
                         restoreLoginForm();
                     }
                 } else {
-                    Toast.makeText(LoginActivity.this, "User profile not registered in hall database", Toast.LENGTH_SHORT).show();
-                    restoreLoginForm();
+                    db.collection("students").document(uid).get().addOnCompleteListener(studentTask -> {
+                        if (studentTask.isSuccessful() && studentTask.getResult() != null && studentTask.getResult().exists()) {
+                            String roll = studentTask.getResult().getString("roll");
+                            if (TextUtils.isEmpty(roll)) {
+                                roll = studentTask.getResult().getString("rollNumber");
+                            }
+                            if (TextUtils.isEmpty(roll)) {
+                                roll = studentTask.getResult().getString("studentId");
+                            }
+                            if (!TextUtils.isEmpty(roll)) {
+                                getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                                        .edit()
+                                        .putString("roll", roll)
+                                        .putString("user_role", "student")
+                                        .apply();
+                                Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
+                                intent.putExtra("EXTRA_USER_ID", uid);
+                                intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
+                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(intent);
+                                finish();
+                                return;
+                            }
+                        }
+                        Toast.makeText(LoginActivity.this, "User profile not registered in hall database", Toast.LENGTH_SHORT).show();
+                        restoreLoginForm();
+                    });
                 }
             } else {
-                String errorMsg = task.getException() != null ? task.getException().getMessage() : "Failed to fetch user role";
-                Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                Log.e("AuthError", "Failed to fetch user role", task.getException());
+                Toast.makeText(LoginActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                 restoreLoginForm();
             }
         });
@@ -186,48 +296,6 @@ public class LoginActivity extends BaseActivity {
         binding.btnLogin.setEnabled(true);
     }
 
-    private void launchGoogleSignIn() {
-        GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(getString(R.string.default_web_client_id))
-                .setAutoSelectEnabled(false)
-                .build();
-
-        GetCredentialRequest request = new GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build();
-
-        credentialManager.getCredentialAsync(
-                this,
-                request,
-                null,
-                getMainExecutor(),
-                new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
-                    @Override
-                    public void onResult(GetCredentialResponse result) {
-                        if (result.getCredential() instanceof CustomCredential) {
-                            CustomCredential customCredential = (CustomCredential) result.getCredential();
-                            if (GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(customCredential.getType())) {
-                                try {
-                                    GoogleIdTokenCredential googleIdTokenCredential =
-                                            GoogleIdTokenCredential.createFrom(customCredential.getData());
-                                    String idToken = googleIdTokenCredential.getIdToken();
-                                    firebaseAuthWithGoogle(idToken);
-                                } catch (Exception e) {
-                                    Toast.makeText(LoginActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onError(GetCredentialException e) {
-                        Toast.makeText(LoginActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
     private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         binding.btnLogin.setEnabled(false);
@@ -235,17 +303,69 @@ public class LoginActivity extends BaseActivity {
         mAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
             if (task.isSuccessful()) {
                 FirebaseUser user = mAuth.getCurrentUser();
-                Toast.makeText(LoginActivity.this, "Google Sign-In Successful", Toast.LENGTH_SHORT).show();
                 if (user != null) {
-                    fetchUserRoleAndNavigate(user.getUid());
+                    verifyStudentProfileAndNavigate(user);
                 } else {
                     restoreLoginForm();
                 }
             } else {
-                String errorMsg = task.getException() != null ? task.getException().getMessage() : "Authentication failed";
-                Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                Log.e("AuthError", "Firebase auth with Google failed", task.getException());
+                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
                 restoreLoginForm();
             }
+        });
+    }
+
+    private void handleFacebookAccessToken(AccessToken token) {
+        AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());
+        binding.btnLogin.setEnabled(false);
+        binding.progressBar.setVisibility(View.VISIBLE);
+        mAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
+            if (task.isSuccessful()) {
+                FirebaseUser user = mAuth.getCurrentUser();
+                if (user != null) {
+                    verifyStudentProfileAndNavigate(user);
+                } else {
+                    restoreLoginForm();
+                }
+            } else {
+                Log.e("AuthError", "Firebase auth with Facebook failed", task.getException());
+                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
+                restoreLoginForm();
+            }
+        });
+    }
+
+    private void verifyStudentProfileAndNavigate(FirebaseUser user) {
+        String uid = user.getUid();
+        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                DocumentSnapshot document = task.getResult();
+                String roll = document.getString("roll");
+                if (TextUtils.isEmpty(roll)) {
+                    roll = document.getString("rollNumber");
+                }
+                if (TextUtils.isEmpty(roll)) {
+                    roll = document.getString("studentId");
+                }
+                if (!TextUtils.isEmpty(roll)) {
+                    getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("roll", roll)
+                            .putString("user_role", "student")
+                            .apply();
+                    Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
+                    intent.putExtra("EXTRA_USER_ID", uid);
+                    intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                    return;
+                }
+            }
+            mAuth.signOut();
+            Toast.makeText(LoginActivity.this, "No student profile linked. Please log in with your Roll/Password first and link your account from profile.", Toast.LENGTH_LONG).show();
+            restoreLoginForm();
         });
     }
 }

@@ -205,6 +205,17 @@
                         app:strokeColor="?attr/colorPrimary"
                         app:strokeWidth="1dp" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFacebookSignIn"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/btn_facebook_sign_in"
+                        android:textColor="?attr/colorPrimary"
+                        app:strokeColor="?attr/colorPrimary"
+                        app:strokeWidth="1dp" />
+
                 </LinearLayout>
 
             </LinearLayout>

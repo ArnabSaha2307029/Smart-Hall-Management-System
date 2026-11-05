@@ -11,6 +11,14 @@
     <string name="btn_demo_admin">Fill Demo Admin</string>
     <string name="btn_demo_student">Fill Demo Student</string>
     <string name="btn_google_sign_in">Sign in with Google</string>
+    <string name="btn_facebook_sign_in">Sign in with Facebook</string>
+    <string name="btn_link_google">Link Google Account</string>
+    <string name="btn_link_facebook">Link Facebook Account</string>
+    <string name="btn_google_linked">Google Linked</string>
+    <string name="btn_facebook_linked">Facebook Linked</string>
+    <string name="facebook_app_id">1112221924928130</string>
+    <string name="fb_login_protocol_scheme">fb1112221924928130</string>
+    <string name="facebook_client_token">694865ebc4c08d841f4bf6f5ce8be26a</string>
     <string name="default_web_client_id">41128550693-placeholder.apps.googleusercontent.com</string>
     <string name="btn_fill_admin">Fill Demo Admin</string>
     <string name="btn_fill_student">Fill Demo Student (Roll: 2307029)</string>

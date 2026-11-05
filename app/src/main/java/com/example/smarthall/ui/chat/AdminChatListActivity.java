@@ -1,6 +1,7 @@
 package com.example.smarthall.ui.chat;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 
@@ -45,15 +46,27 @@ public class AdminChatListActivity extends BaseActivity {
     }
 
     private void setupToolbar() {
+        int primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+        int primaryVariant = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(primaryVariant);
+        }
+        binding.toolbarAdminChatList.setBackgroundColor(primaryColor);
         binding.btnChatListBack.setOnClickListener(v -> finish());
     }
 
     private void setupRecyclerView() {
+        int primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+        int primaryVariant = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
+
         binding.recyclerViewAdminChatList.setLayoutManager(new LinearLayoutManager(this));
         adapter = new AdminChatListAdapter(chatList, item -> {
             Intent intent = new Intent(AdminChatListActivity.this, ChatActivity.class);
             intent.putExtra("student_roll", item.getStudentRoll());
             intent.putExtra("chatting_with_role", "student");
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, primaryColor);
+            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, primaryVariant);
             startActivity(intent);
         });
         binding.recyclerViewAdminChatList.setAdapter(adapter);

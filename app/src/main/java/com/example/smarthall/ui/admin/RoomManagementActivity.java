@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -87,7 +88,8 @@ public class RoomManagementActivity extends BaseActivity {
                     binding.pbLoadingRooms.setVisibility(View.GONE);
 
                     if (error != null) {
-                        Toast.makeText(this, "Failed to load rooms: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        Log.e("RoomManagement", "Failed to load rooms", error);
+                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
@@ -179,7 +181,8 @@ public class RoomManagementActivity extends BaseActivity {
 
                 @Override
                 public void onFailure(Exception e) {
-                    Toast.makeText(RoomManagementActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Log.e("RoomManagement", "Failed to add room", e);
+                    Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
                 }
             });
         });
@@ -284,7 +287,8 @@ public class RoomManagementActivity extends BaseActivity {
 
                         @Override
                         public void onFailure(Exception e) {
-                            Toast.makeText(RoomManagementActivity.this, "Vacate failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            Log.e("RoomManagement", "Vacate failed", e);
+                            Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
                         }
                     });
                 })
@@ -520,7 +524,8 @@ public class RoomManagementActivity extends BaseActivity {
             selectorBinding.pbLoadingStudents.setVisibility(View.GONE);
             selectorBinding.tvEmptyStudents.setVisibility(View.VISIBLE);
             selectorBinding.rvStudentList.setVisibility(View.GONE);
-            selectorBinding.tvEmptyStudents.setText("Failed to load students: " + e.getMessage());
+            Log.e("RoomManagement", "Failed to load students", e);
+            selectorBinding.tvEmptyStudents.setText("Unable to load students. Please check your connection.");
         });
     }
 
@@ -542,7 +547,8 @@ public class RoomManagementActivity extends BaseActivity {
 
                                 @Override
                                 public void onFailure(Exception e) {
-                                    Toast.makeText(RoomManagementActivity.this, "Allocation failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Log.e("RoomManagement", "Allocation failed", e);
+                                    Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
                                 }
                             });
                 })

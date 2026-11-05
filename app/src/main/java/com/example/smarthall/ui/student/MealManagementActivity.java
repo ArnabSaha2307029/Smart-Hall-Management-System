@@ -455,7 +455,7 @@ public class MealManagementActivity extends BaseActivity {
                 .addOnFailureListener(e -> {
                     binding.btnUpdateMeal.setEnabled(true);
                     Log.e("MEAL_UPDATE", "Failed to check closures", e);
-                    Toast.makeText(this, "Failed to verify hall closures: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                 });
     }
 
