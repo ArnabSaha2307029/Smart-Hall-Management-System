@@ -12,9 +12,11 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityLoginBinding;
+import com.example.smarthall.databinding.DialogForgotPasswordBinding;
 import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.base.BaseActivity;
@@ -34,6 +36,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
@@ -164,6 +167,8 @@ public class LoginActivity extends BaseActivity {
             binding.progressBar.setVisibility(View.VISIBLE);
             LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("email", "public_profile"));
         });
+
+        binding.tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
     }
 
     private void attemptLogin() {
@@ -367,5 +372,82 @@ public class LoginActivity extends BaseActivity {
             Toast.makeText(LoginActivity.this, "No student profile linked. Please log in with your Roll/Password first and link your account from profile.", Toast.LENGTH_LONG).show();
             restoreLoginForm();
         });
+    }
+
+    private void showForgotPasswordDialog() {
+        DialogForgotPasswordBinding dialogBinding = DialogForgotPasswordBinding.inflate(getLayoutInflater());
+        String currentEmail = binding.etEmail.getText() != null ? binding.etEmail.getText().toString().trim() : "";
+        if (!TextUtils.isEmpty(currentEmail)) {
+            dialogBinding.etResetEmail.setText(currentEmail);
+            dialogBinding.etResetEmail.setSelection(currentEmail.length());
+        }
+
+        dialogBinding.etResetEmail.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                dialogBinding.tilResetEmail.setError(null);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+            }
+        });
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.reset_password_title)
+                .setMessage(R.string.reset_password_instruction)
+                .setView(dialogBinding.getRoot())
+                .setPositiveButton(R.string.btn_send_reset_link, null)
+                .setNegativeButton(R.string.btn_cancel, (d, which) -> d.dismiss())
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String email = dialogBinding.etResetEmail.getText() != null
+                        ? dialogBinding.etResetEmail.getText().toString().trim()
+                        : "";
+                dialogBinding.tilResetEmail.setError(null);
+
+                if (TextUtils.isEmpty(email)) {
+                    dialogBinding.tilResetEmail.setError(getString(R.string.err_empty_email_reset));
+                    dialogBinding.etResetEmail.requestFocus();
+                    return;
+                }
+
+                if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    dialogBinding.tilResetEmail.setError(getString(R.string.err_invalid_email_reset));
+                    dialogBinding.etResetEmail.requestFocus();
+                    return;
+                }
+
+                dialog.dismiss();
+                binding.progressBar.setVisibility(View.VISIBLE);
+
+                FirebaseAuth.getInstance().sendPasswordResetEmail(email)
+                        .addOnCompleteListener(task -> {
+                            binding.progressBar.setVisibility(View.GONE);
+                            if (task.isSuccessful()) {
+                                showSuccessMessage(getString(R.string.reset_email_sent_success));
+                            } else {
+                                Log.e("AuthReset", "Password reset failed", task.getException());
+                                showErrorMessage(getString(R.string.err_reset_failed));
+                            }
+                        });
+            });
+        });
+
+        dialog.show();
+    }
+
+    private void showSuccessMessage(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    private void showErrorMessage(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 }

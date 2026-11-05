@@ -71,4 +71,13 @@
     <string name="reopen">Reopen</string>
     <string name="logged_in_as">Logged in as: %1$s</string>
     <string name="tap_seat_instruction">Tap an available (green) seat to select it</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="reset_password_title">Reset Password</string>
+    <string name="reset_password_instruction">Enter your registered institutional or hall email address to receive a password reset link.</string>
+    <string name="btn_send_reset_link">Send Link</string>
+    <string name="reset_email_sent_success">Password reset link has been sent to your email. Please check your inbox or spam folder.</string>
+    <string name="err_empty_email_reset">Please enter your email address.</string>
+    <string name="err_invalid_email_reset">Please enter a valid email address.</string>
+    <string name="err_reset_failed">Unable to send reset email. Please verify your email and try again.</string>
+    <string name="hint_email_address">Email Address</string>
 </resources>
