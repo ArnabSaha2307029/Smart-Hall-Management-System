@@ -43,7 +43,15 @@ import java.util.List;
 public class AiChatActivity extends BaseActivity {
 
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
-    private static final String GEMINI_MODEL_NAME = "gemini-3.5-flash-lite";
+    private static final String[] MODEL_CHAIN = {
+            "gemini-3.5-flash-lite",
+            "gemini-2.5-flash-lite",
+            "gemini-3.5-flash",
+            "gemini-2.5-flash",
+            "gemini-flash-latest",
+            "gemini-2.5-pro",
+            "gemini-3.5-pro"
+    };
     private static final String GEMINI_API_KEY = "AQ.Ab8RN6KZSwV0Q0ZmVJRgYpVJbLSdDxDKMHdwCZaJBX6MCdEh4g";
     private static final String SYSTEM_INSTRUCTION_TEXT =
             "You are the official AI Resident Assistant for 'SmartHall', a digital Hall Management System app. " +
@@ -171,14 +179,14 @@ public class AiChatActivity extends BaseActivity {
             configBuilder.maxOutputTokens = 1024;
             GenerationConfig generationConfig = configBuilder.build();
 
-            RequestOptions requestOptions = new RequestOptions(60000L, "v1beta");
+            RequestOptions requestOptions = new RequestOptions(30000L, "v1beta");
 
             Content systemInstruction = new Content.Builder()
                     .addText(SYSTEM_INSTRUCTION_TEXT)
                     .build();
 
             GenerativeModel gm = new GenerativeModel(
-                    GEMINI_MODEL_NAME,
+                    MODEL_CHAIN[0],
                     GEMINI_API_KEY,
                     generationConfig,
                     null,
@@ -254,12 +262,6 @@ public class AiChatActivity extends BaseActivity {
             return;
         }
 
-        if (geminiModel == null) {
-            Toast.makeText(this, "AI Assistant is initializing. Please try again.", Toast.LENGTH_SHORT).show();
-            setupGemini();
-            return;
-        }
-
         binding.etChatMessage.setText("");
 
         if (aiChatRef == null) {
@@ -281,12 +283,52 @@ public class AiChatActivity extends BaseActivity {
             binding.recyclerViewAiChat.smoothScrollToPosition(messageList.size() - 1);
         }
 
+        dispatchPromptWithFallback(text, 0);
+    }
+
+    private void dispatchPromptWithFallback(String userMessageText, int modelIndex) {
+        if (modelIndex >= MODEL_CHAIN.length) {
+            if (binding != null) {
+                binding.layoutAiTyping.setVisibility(View.GONE);
+            }
+            Toast.makeText(this, "AI Assistant is temporarily busy. Please try again in a moment.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+
         try {
-            Content userContent = new Content.Builder()
-                    .addText(text)
+            GenerationConfig.Builder configBuilder = new GenerationConfig.Builder();
+            configBuilder.temperature = 0.7f;
+            configBuilder.maxOutputTokens = 1024;
+            GenerationConfig generationConfig = configBuilder.build();
+
+            RequestOptions requestOptions = new RequestOptions(30000L, "v1beta");
+
+            Content systemInstruction = new Content.Builder()
+                    .addText(SYSTEM_INSTRUCTION_TEXT)
                     .build();
 
-            ListenableFuture<GenerateContentResponse> response = geminiModel.generateContent(userContent);
+            GenerativeModel gm = new GenerativeModel(
+                    MODEL_CHAIN[modelIndex],
+                    GEMINI_API_KEY,
+                    generationConfig,
+                    null,
+                    requestOptions,
+                    null,
+                    null,
+                    systemInstruction
+            );
+
+            GenerativeModelFutures currentModel = GenerativeModelFutures.from(gm);
+
+            Content userContent = new Content.Builder()
+                    .addText(userMessageText)
+                    .build();
+
+            ListenableFuture<GenerateContentResponse> response = currentModel.generateContent(userContent);
             Futures.addCallback(response, new FutureCallback<GenerateContentResponse>() {
                 @Override
                 public void onSuccess(GenerateContentResponse result) {
@@ -309,7 +351,7 @@ public class AiChatActivity extends BaseActivity {
                                 aiChatRef.child(aiMsgId).setValue(aiMsg);
                             }
                         }
-                        if (!messageList.isEmpty() && binding != null) {
+                        if (!messageList.isEmpty() && binding != null && binding.recyclerViewAiChat != null) {
                             binding.recyclerViewAiChat.smoothScrollToPosition(messageList.size() - 1);
                         }
                     });
@@ -321,26 +363,32 @@ public class AiChatActivity extends BaseActivity {
                         if (isFinishing() || isDestroyed()) {
                             return;
                         }
-                        if (binding != null) {
-                            binding.layoutAiTyping.setVisibility(View.GONE);
+                        Log.w("GeminiAPI", "Model " + MODEL_CHAIN[modelIndex] + " failed: " + t.getMessage());
+                        if (modelIndex + 1 < MODEL_CHAIN.length) {
+                            Log.i("GeminiAPI", "Failing over to: " + MODEL_CHAIN[modelIndex + 1]);
+                            dispatchPromptWithFallback(userMessageText, modelIndex + 1);
+                        } else {
+                            if (binding != null) {
+                                binding.layoutAiTyping.setVisibility(View.GONE);
+                            }
+                            Log.e("GeminiAPI", "All fallback models in chain exhausted", t);
+                            Toast.makeText(AiChatActivity.this, "AI Assistant is temporarily busy. Please try again in a moment.", Toast.LENGTH_SHORT).show();
                         }
-                        String causeMessage = null;
-                        if (t.getCause() != null && !TextUtils.isEmpty(t.getCause().getMessage())) {
-                            causeMessage = t.getCause().getMessage();
-                        }
-                        Log.e("GeminiAPI", "AI Generation Failed: " + t.getLocalizedMessage() +
-                                (causeMessage != null ? " | Cause: " + causeMessage : ""), t);
-                        String displayError = causeMessage != null ? causeMessage : t.getLocalizedMessage();
-                        Toast.makeText(AiChatActivity.this, "AI Error: " + displayError, Toast.LENGTH_LONG).show();
                     });
                 }
             }, ContextCompat.getMainExecutor(this));
         } catch (Exception e) {
-            Log.e("GeminiAPI", "Failed to dispatch generateContent request", e);
-            if (binding != null) {
-                binding.layoutAiTyping.setVisibility(View.GONE);
+            Log.w("GeminiAPI", "Model " + MODEL_CHAIN[modelIndex] + " failed: " + e.getMessage());
+            if (modelIndex + 1 < MODEL_CHAIN.length) {
+                Log.i("GeminiAPI", "Failing over to: " + MODEL_CHAIN[modelIndex + 1]);
+                dispatchPromptWithFallback(userMessageText, modelIndex + 1);
+            } else {
+                if (binding != null) {
+                    binding.layoutAiTyping.setVisibility(View.GONE);
+                }
+                Log.e("GeminiAPI", "All fallback models in chain exhausted", e);
+                Toast.makeText(this, "AI Assistant is temporarily busy. Please try again in a moment.", Toast.LENGTH_SHORT).show();
             }
-            Toast.makeText(this, "AI Error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
