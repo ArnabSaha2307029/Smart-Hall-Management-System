@@ -24,6 +24,7 @@ import com.google.ai.client.generativeai.GenerativeModel;
 import com.google.ai.client.generativeai.java.GenerativeModelFutures;
 import com.google.ai.client.generativeai.type.Content;
 import com.google.ai.client.generativeai.type.GenerateContentResponse;
+import com.google.ai.client.generativeai.type.GenerationConfig;
 import com.google.ai.client.generativeai.type.RequestOptions;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -42,7 +43,7 @@ import java.util.List;
 public class AiChatActivity extends BaseActivity {
 
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
-    private static final String GEMINI_MODEL_NAME = "gemini-flash-latest";
+    private static final String GEMINI_MODEL_NAME = "gemini-3.5-flash-lite";
     private static final String GEMINI_API_KEY = "AQ.Ab8RN6KZSwV0Q0ZmVJRgYpVJbLSdDxDKMHdwCZaJBX6MCdEh4g";
     private static final String SYSTEM_INSTRUCTION_TEXT =
             "You are the official AI Resident Assistant for 'SmartHall', a digital Hall Management System app. " +
@@ -165,6 +166,13 @@ public class AiChatActivity extends BaseActivity {
 
     private void setupGemini() {
         try {
+            GenerationConfig.Builder configBuilder = new GenerationConfig.Builder();
+            configBuilder.temperature = 0.7f;
+            configBuilder.maxOutputTokens = 1024;
+            GenerationConfig generationConfig = configBuilder.build();
+
+            RequestOptions requestOptions = new RequestOptions(60000L, "v1beta");
+
             Content systemInstruction = new Content.Builder()
                     .addText(SYSTEM_INSTRUCTION_TEXT)
                     .build();
@@ -172,9 +180,9 @@ public class AiChatActivity extends BaseActivity {
             GenerativeModel gm = new GenerativeModel(
                     GEMINI_MODEL_NAME,
                     GEMINI_API_KEY,
+                    generationConfig,
                     null,
-                    null,
-                    new RequestOptions(),
+                    requestOptions,
                     null,
                     null,
                     systemInstruction
@@ -316,8 +324,14 @@ public class AiChatActivity extends BaseActivity {
                         if (binding != null) {
                             binding.layoutAiTyping.setVisibility(View.GONE);
                         }
-                        Log.e("GeminiAPI", "AI Generation Failed", t);
-                        Toast.makeText(AiChatActivity.this, "AI Error: " + t.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                        String causeMessage = null;
+                        if (t.getCause() != null && !TextUtils.isEmpty(t.getCause().getMessage())) {
+                            causeMessage = t.getCause().getMessage();
+                        }
+                        Log.e("GeminiAPI", "AI Generation Failed: " + t.getLocalizedMessage() +
+                                (causeMessage != null ? " | Cause: " + causeMessage : ""), t);
+                        String displayError = causeMessage != null ? causeMessage : t.getLocalizedMessage();
+                        Toast.makeText(AiChatActivity.this, "AI Error: " + displayError, Toast.LENGTH_LONG).show();
                     });
                 }
             }, ContextCompat.getMainExecutor(this));
