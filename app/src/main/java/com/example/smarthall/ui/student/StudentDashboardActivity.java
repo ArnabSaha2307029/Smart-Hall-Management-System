@@ -54,6 +54,7 @@ import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
+import com.example.smarthall.ui.chat.ChatSelectionActivity;
 import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
@@ -682,15 +683,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private void setupHeader() {
         binding.btnMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
         binding.btnSos.setOnClickListener(v -> showSosDialog());
-        View.OnClickListener chatClickListener = v -> {
-            String roll = getActiveStudentRoll();
-            Intent intent = new Intent(this, ChatActivity.class);
-            intent.putExtra("student_roll", roll);
-            intent.putExtra("chatting_with_role", "admin");
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
-            startActivity(intent);
-        };
+        View.OnClickListener chatClickListener = v -> launchChatSelection();
         binding.layoutTopChat.setOnClickListener(chatClickListener);
         binding.btnTopChat.setOnClickListener(chatClickListener);
         binding.btnTopNotices.setOnClickListener(v -> {
@@ -698,6 +691,20 @@ public class StudentDashboardActivity extends BaseActivity {
             startActivity(intent);
         });
         binding.btnTopLogout.setOnClickListener(v -> logout());
+    }
+
+    private void launchChatSelection() {
+        Intent intent = new Intent(this, ChatSelectionActivity.class);
+        intent.putExtra("student_roll", getActiveStudentRoll());
+        if (student != null) {
+            intent.putExtra("student_name", student.getName());
+            intent.putExtra("hall_name", student.getHallName());
+        } else {
+            intent.putExtra("hall_name", getString(R.string.hall_name));
+        }
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
+        startActivity(intent);
     }
 
     private void setupNavigationDrawer() {
@@ -716,22 +723,7 @@ public class StudentDashboardActivity extends BaseActivity {
         });
         binding.btnNavChatWithAdmin.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
-            String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
-                    ? student.getRollNumber()
-                    : "";
-            if (TextUtils.isEmpty(roll)) {
-                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-                if (user != null) {
-                    SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
-                    roll = prefs.getString("student_roll", "");
-                }
-            }
-            Intent intent = new Intent(this, ChatActivity.class);
-            intent.putExtra("student_roll", roll);
-            intent.putExtra("chatting_with_role", "admin");
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
-            startActivity(intent);
+            launchChatSelection();
         });
         binding.btnNavFeeRecords.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -750,7 +742,11 @@ public class StudentDashboardActivity extends BaseActivity {
                 @Override
                 public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     int id = item.getItemId();
-                    if (id == R.id.nav_link_google) {
+                    if (id == R.id.nav_chat) {
+                        binding.drawerLayout.closeDrawer(GravityCompat.START);
+                        launchChatSelection();
+                        return true;
+                    } else if (id == R.id.nav_link_google) {
                         if (googleLinkClient != null) {
                             googleLinkClient.signOut().addOnCompleteListener(StudentDashboardActivity.this, task -> {
                                 googleLinkLauncher.launch(googleLinkClient.getSignInIntent());

@@ -123,6 +123,17 @@
         </activity>
 
         <activity
+            android:name=".ui.chat.ChatSelectionActivity"
+            android:exported="true"
+            android:label="Chats" />
+
+        <activity
+            android:name=".ui.chat.AiChatActivity"
+            android:exported="true"
+            android:label="SmartHall AI Assistant"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".ui.chat.AdminChatListActivity"
             android:exported="false"
             android:label="Student Messages"
