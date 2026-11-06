@@ -46,6 +46,7 @@ import com.example.smarthall.model.Student;
 import com.example.smarthall.network.FcmNotificationSender;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
+import com.example.smarthall.services.EmergencySosForegroundService;
 import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.adapters.GlobalComplaintAdapter;
 import com.example.smarthall.ui.adapters.StudentAdapter;
@@ -57,6 +58,7 @@ import com.example.smarthall.ui.complaint.ComplaintDetailActivity;
 import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.BillingEngine;
+import com.example.smarthall.util.EmergencySosManager;
 import com.example.smarthall.util.MealCutoffUtil;
 import com.example.smarthall.util.RoomAllocationManager;
 import com.example.smarthall.util.ThemeHelper;
@@ -165,6 +167,8 @@ public class AdminDashboardActivity extends BaseActivity {
         setupComplaintsListener();
         RoomAllocationManager.seedDefaultRoomsIfEmpty(null);
         switchTab(TAB_STUDENTS);
+        Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
+        ContextCompat.startForegroundService(this, serviceIntent);
     }
 
     @Override
@@ -898,6 +902,7 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void logout() {
+        stopService(new Intent(this, EmergencySosForegroundService.class));
         getSharedPreferences("user_session", Context.MODE_PRIVATE).edit().clear().apply();
         FirebaseAuth.getInstance().signOut();
         Intent intent = new Intent(this, LoginActivity.class);

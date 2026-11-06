@@ -40,6 +40,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityStudentDashboardBinding;
+import com.example.smarthall.databinding.DialogEmergencySosBinding;
 import com.example.smarthall.model.Complaint;
 import com.example.smarthall.model.FeeRecord;
 import com.example.smarthall.model.PaymentRecord;
@@ -48,6 +49,7 @@ import com.example.smarthall.model.SeatOccupant;
 import com.example.smarthall.model.Student;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
+import com.example.smarthall.services.EmergencySosForegroundService;
 import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
@@ -56,6 +58,7 @@ import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
+import com.example.smarthall.util.EmergencySosManager;
 import com.example.smarthall.util.ThemeHelper;
 import com.facebook.login.LoginManager;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -316,6 +319,8 @@ public class StudentDashboardActivity extends BaseActivity {
         refreshComplaints();
         loadProfileImage();
         setupChatBadgeListener();
+        Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
+        ContextCompat.startForegroundService(this, serviceIntent);
         updateDrawerMenuState();
     }
 
@@ -465,6 +470,96 @@ public class StudentDashboardActivity extends BaseActivity {
         }
     }
 
+    private void showSosDialog() {
+        DialogEmergencySosBinding dialogBinding = DialogEmergencySosBinding.inflate(getLayoutInflater());
+
+        dialogBinding.etSosLocation.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                dialogBinding.tilSosLocation.setError(null);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+            }
+        });
+
+        androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Emergency SOS Broadcast")
+                .setView(dialogBinding.getRoot())
+                .setPositiveButton("SEND EMERGENCY SOS", null)
+                .setNegativeButton("Cancel", (d, which) -> d.dismiss())
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String locationText = dialogBinding.etSosLocation.getText() != null
+                        ? dialogBinding.etSosLocation.getText().toString().trim()
+                        : "";
+                String incidentText = dialogBinding.etSosIncident.getText() != null
+                        ? dialogBinding.etSosIncident.getText().toString().trim()
+                        : "";
+
+                if (TextUtils.isEmpty(locationText)) {
+                    dialogBinding.tilSosLocation.setError("Location is required");
+                    dialogBinding.etSosLocation.requestFocus();
+                    return;
+                }
+
+                dialog.dismiss();
+
+                String currentStudentRoll = getActiveStudentRoll();
+                String currentStudentName = "";
+                if (student != null && !TextUtils.isEmpty(student.getName())) {
+                    currentStudentName = student.getName().trim();
+                }
+                if (TextUtils.isEmpty(currentStudentName)) {
+                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                    if (user != null) {
+                        SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
+                        currentStudentName = prefs.getString("student_name", "").trim();
+                        if (TextUtils.isEmpty(currentStudentName) && user.getDisplayName() != null) {
+                            currentStudentName = user.getDisplayName().trim();
+                        }
+                    }
+                }
+                if (TextUtils.isEmpty(currentStudentName)) {
+                    currentStudentName = !TextUtils.isEmpty(currentStudentRoll) ? "Student " + currentStudentRoll : "Hall Resident";
+                }
+
+                DatabaseReference targetRef = EmergencySosManager.getSosReference();
+                String sosId = targetRef.push().getKey();
+                if (sosId == null) {
+                    sosId = java.util.UUID.randomUUID().toString();
+                }
+
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("sosId", sosId);
+                payload.put("senderRoll", currentStudentRoll);
+                payload.put("senderName", currentStudentName);
+                payload.put("location", locationText);
+                payload.put("incident", incidentText.isEmpty() ? "Not specified" : incidentText);
+                payload.put("timestamp", System.currentTimeMillis());
+                payload.put("status", "ACTIVE");
+
+                targetRef.child(sosId).setValue(payload)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(StudentDashboardActivity.this, "Emergency alert sent to all hall members.", Toast.LENGTH_SHORT).show();
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e("EmergencySos", "Failed to broadcast emergency SOS", e);
+                            Toast.makeText(StudentDashboardActivity.this, "Failed to broadcast emergency SOS. Please retry.", Toast.LENGTH_SHORT).show();
+                        });
+            });
+        });
+
+        dialog.show();
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm = getSystemService(NotificationManager.class);
@@ -579,6 +674,7 @@ public class StudentDashboardActivity extends BaseActivity {
 
     private void setupHeader() {
         binding.btnMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
+        binding.btnSos.setOnClickListener(v -> showSosDialog());
         View.OnClickListener chatClickListener = v -> {
             String roll = getActiveStudentRoll();
             Intent intent = new Intent(this, ChatActivity.class);
@@ -1168,6 +1264,7 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void logout() {
+        stopService(new Intent(this, EmergencySosForegroundService.class));
         getSharedPreferences("user_session", Context.MODE_PRIVATE).edit().clear().apply();
         FirebaseAuth.getInstance().signOut();
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
