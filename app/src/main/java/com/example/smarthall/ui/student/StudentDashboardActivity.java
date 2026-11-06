@@ -92,6 +92,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -103,6 +104,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class StudentDashboardActivity extends BaseActivity {
 
@@ -130,6 +133,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private ActivityResultLauncher<Intent> googleLinkLauncher;
     private String linkedGoogleEmail;
     private NavigationView navigationView;
+    private final ExecutorService imageProcessingExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -385,6 +389,9 @@ public class StudentDashboardActivity extends BaseActivity {
             chatBadgeRef.removeEventListener(chatBadgeListener);
             chatBadgeListener = null;
             chatBadgeRef = null;
+        }
+        if (imageProcessingExecutor != null && !imageProcessingExecutor.isShutdown()) {
+            imageProcessingExecutor.shutdown();
         }
     }
 
@@ -1337,88 +1344,149 @@ public class StudentDashboardActivity extends BaseActivity {
         if (currentUser == null) {
             return;
         }
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            if (inputStream == null) {
-                return;
-            }
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            inputStream.close();
-            if (bitmap == null) {
-                return;
-            }
 
-            String fileName = "profile_picture_" + currentUser.getUid() + ".jpg";
-            File file = new File(getFilesDir(), fileName);
-            long maxSizeBytes = 100 * 1024;
-            int quality = 95;
-            boolean saved = false;
+        if (binding != null) {
+            if (binding.pbProfileAvatar != null) {
+                binding.pbProfileAvatar.setVisibility(View.VISIBLE);
+            }
+            binding.ivProfileAvatar.setEnabled(false);
+            binding.cardProfileAvatar.setEnabled(false);
+        }
 
-            while (quality > 15) {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
-                byte[] byteArray = stream.toByteArray();
-                if (byteArray.length <= maxSizeBytes) {
+        imageProcessingExecutor.execute(() -> {
+            Bitmap bitmap = null;
+            Bitmap scaledBitmap = null;
+            try {
+                InputStream inputStream = getContentResolver().openInputStream(uri);
+                if (inputStream == null) {
+                    throw new IOException("Unable to open input stream from uri");
+                }
+                bitmap = BitmapFactory.decodeStream(inputStream);
+                inputStream.close();
+                if (bitmap == null) {
+                    throw new IOException("Failed to decode bitmap from stream");
+                }
+
+                String fileName = "profile_picture_" + currentUser.getUid() + ".jpg";
+                File file = new File(getFilesDir(), fileName);
+                long maxSizeBytes = 100 * 1024;
+                int quality = 95;
+                boolean saved = false;
+
+                while (quality > 15) {
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+                    byte[] byteArray = stream.toByteArray();
+                    if (byteArray.length <= maxSizeBytes) {
+                        FileOutputStream fos = new FileOutputStream(file);
+                        fos.write(byteArray);
+                        fos.flush();
+                        fos.close();
+                        saved = true;
+                        break;
+                    }
+                    quality -= 10;
+                }
+
+                if (!saved) {
+                    int width = bitmap.getWidth();
+                    int height = bitmap.getHeight();
+                    scaledBitmap = Bitmap.createScaledBitmap(bitmap, (int) (width * 0.8), (int) (height * 0.8), true);
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
+                    byte[] byteArray = stream.toByteArray();
                     FileOutputStream fos = new FileOutputStream(file);
                     fos.write(byteArray);
                     fos.flush();
                     fos.close();
-                    saved = true;
-                    break;
                 }
-                quality -= 10;
+
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    bitmap.recycle();
+                    bitmap = null;
+                }
+                if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+                    scaledBitmap.recycle();
+                    scaledBitmap = null;
+                }
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                FileInputStream fis = new FileInputStream(file);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = fis.read(buf)) != -1) {
+                    baos.write(buf, 0, len);
+                }
+                fis.close();
+                byte[] fileBytes = baos.toByteArray();
+                String base64Image = Base64.encodeToString(fileBytes, Base64.NO_WRAP);
+
+                SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
+                prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
+
+                Bitmap displayBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (binding != null) {
+                        if (binding.pbProfileAvatar != null) {
+                            binding.pbProfileAvatar.setVisibility(View.GONE);
+                        }
+                        binding.ivProfileAvatar.setEnabled(true);
+                        binding.cardProfileAvatar.setEnabled(true);
+                        if (displayBitmap != null) {
+                            binding.ivProfileAvatar.setImageBitmap(displayBitmap);
+                        } else {
+                            loadProfileImage();
+                        }
+                    }
+                    uploadProfileImageToFirestore(file, base64Image);
+                });
+
+            } catch (OutOfMemoryError e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } catch (IOException e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } catch (Exception e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } finally {
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    bitmap.recycle();
+                }
+                if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+                    scaledBitmap.recycle();
+                }
             }
-
-            Bitmap scaledBitmap = null;
-            if (!saved) {
-                int width = bitmap.getWidth();
-                int height = bitmap.getHeight();
-                scaledBitmap = Bitmap.createScaledBitmap(bitmap, (int) (width * 0.8), (int) (height * 0.8), true);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
-                byte[] byteArray = stream.toByteArray();
-                FileOutputStream fos = new FileOutputStream(file);
-                fos.write(byteArray);
-                fos.flush();
-                fos.close();
-            }
-
-            if (bitmap != null && !bitmap.isRecycled()) {
-                bitmap.recycle();
-            }
-            if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
-                scaledBitmap.recycle();
-            }
-
-            uploadProfileImageToFirestore(file);
-
-            SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
-            prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
-
-            loadProfileImage();
-        } catch (Exception e) {
-            Log.e("StudentDashboard", "Failed to save profile image", e);
-            Toast.makeText(this, "Failed to save profile picture", Toast.LENGTH_SHORT).show();
-        }
+        });
     }
 
-    private void uploadProfileImageToFirestore(File file) {
+    private void handleImageProcessingError() {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            if (binding != null) {
+                if (binding.pbProfileAvatar != null) {
+                    binding.pbProfileAvatar.setVisibility(View.GONE);
+                }
+                binding.ivProfileAvatar.setEnabled(true);
+                binding.cardProfileAvatar.setEnabled(true);
+            }
+            Toast.makeText(this, "Failed to process image. Please try another photo.", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void uploadProfileImageToFirestore(File file, String base64Image) {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser == null || file == null || !file.exists()) {
+        if (currentUser == null || file == null || TextUtils.isEmpty(base64Image)) {
             return;
         }
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            FileInputStream fis = new FileInputStream(file);
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = fis.read(buf)) != -1) {
-                baos.write(buf, 0, len);
-            }
-            fis.close();
-            byte[] fileBytes = baos.toByteArray();
-
-            String base64Image = Base64.encodeToString(fileBytes, Base64.NO_WRAP);
             FirebaseFirestore db = FirebaseFirestore.getInstance();
             db.collection("students")
                     .document(currentUser.getUid())
@@ -1432,7 +1500,7 @@ public class StudentDashboardActivity extends BaseActivity {
                         .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to sync roll profile image", e));
             }
         } catch (Exception e) {
-            Log.e("StudentDashboard", "Failed to read profile image for upload", e);
+            Log.e("StudentDashboard", "Failed to write profile image to Firestore", e);
         }
     }
 

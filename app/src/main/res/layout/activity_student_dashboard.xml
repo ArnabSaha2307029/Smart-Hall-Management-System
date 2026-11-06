@@ -193,6 +193,14 @@
                                 android:clickable="true"
                                 android:focusable="true" />
 
+                            <ProgressBar
+                                android:id="@+id/pbProfileAvatar"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_gravity="center"
+                                android:indeterminateTint="?attr/colorPrimary"
+                                android:visibility="gone" />
+
                         </com.google.android.material.card.MaterialCardView>
 
                         <TextView
