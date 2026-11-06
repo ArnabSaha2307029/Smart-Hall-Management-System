@@ -6,6 +6,7 @@ public class ChatMessage {
     private String senderRole;
     private String message;
     private long timestamp;
+    private boolean read;
 
     public ChatMessage() {
     }
@@ -15,6 +16,15 @@ public class ChatMessage {
         this.senderRole = senderRole;
         this.message = message;
         this.timestamp = timestamp;
+        this.read = false;
+    }
+
+    public ChatMessage(String messageId, String senderRole, String message, long timestamp, boolean read) {
+        this.messageId = messageId;
+        this.senderRole = senderRole;
+        this.message = message;
+        this.timestamp = timestamp;
+        this.read = read;
     }
 
     public String getMessageId() {
@@ -47,5 +57,13 @@ public class ChatMessage {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public boolean isRead() {
+        return read;
+    }
+
+    public void setRead(boolean read) {
+        this.read = read;
     }
 }

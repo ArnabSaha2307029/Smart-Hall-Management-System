@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
@@ -123,8 +124,8 @@ public class NoticeDetailActivity extends BaseActivity {
                         finish();
                     } else {
                         binding.btnDeleteNotice.setEnabled(true);
-                        String error = task.getException() != null ? task.getException().getMessage() : "Failed to delete notice";
-                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                        Log.e("NoticeDetail", "Failed to delete notice", task.getException());
+                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }

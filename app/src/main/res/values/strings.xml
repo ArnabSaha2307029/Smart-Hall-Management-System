@@ -11,6 +11,14 @@
     <string name="btn_demo_admin">Fill Demo Admin</string>
     <string name="btn_demo_student">Fill Demo Student</string>
     <string name="btn_google_sign_in">Sign in with Google</string>
+    <string name="btn_facebook_sign_in">Sign in with Facebook</string>
+    <string name="btn_link_google">Link Google Account</string>
+    <string name="btn_link_facebook">Link Facebook Account</string>
+    <string name="btn_google_linked">Google Linked</string>
+    <string name="btn_facebook_linked">Facebook Linked</string>
+    <string name="facebook_app_id">1112221924928130</string>
+    <string name="fb_login_protocol_scheme">fb1112221924928130</string>
+    <string name="facebook_client_token">694865ebc4c08d841f4bf6f5ce8be26a</string>
     <string name="default_web_client_id">41128550693-placeholder.apps.googleusercontent.com</string>
     <string name="btn_fill_admin">Fill Demo Admin</string>
     <string name="btn_fill_student">Fill Demo Student (Roll: 2307029)</string>
@@ -63,4 +71,13 @@
     <string name="reopen">Reopen</string>
     <string name="logged_in_as">Logged in as: %1$s</string>
     <string name="tap_seat_instruction">Tap an available (green) seat to select it</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="reset_password_title">Reset Password</string>
+    <string name="reset_password_instruction">Enter your registered institutional or hall email address to receive a password reset link.</string>
+    <string name="btn_send_reset_link">Send Link</string>
+    <string name="reset_email_sent_success">Password reset link has been sent to your email. Please check your inbox or spam folder.</string>
+    <string name="err_empty_email_reset">Please enter your email address.</string>
+    <string name="err_invalid_email_reset">Please enter a valid email address.</string>
+    <string name="err_reset_failed">Unable to send reset email. Please verify your email and try again.</string>
+    <string name="hint_email_address">Email Address</string>
 </resources>

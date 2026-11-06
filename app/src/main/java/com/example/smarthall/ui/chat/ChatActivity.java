@@ -3,11 +3,21 @@ package com.example.smarthall.ui.chat;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.databinding.ActivityChatBinding;
@@ -15,6 +25,7 @@ import com.example.smarthall.model.ChatMessage;
 import com.example.smarthall.network.FcmNotificationSender;
 import com.example.smarthall.ui.adapters.ChatMessageAdapter;
 import com.example.smarthall.ui.base.BaseActivity;
+import com.example.smarthall.util.HallThemeManager;
 import com.example.smarthall.util.ThemeHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -32,6 +43,9 @@ import java.util.Map;
 
 public class ChatActivity extends BaseActivity {
 
+    public static final String EXTRA_PRIMARY_COLOR = "EXTRA_PRIMARY_COLOR";
+    public static final String EXTRA_PRIMARY_DARK_COLOR = "EXTRA_PRIMARY_DARK_COLOR";
+
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
 
     private ActivityChatBinding binding;
@@ -45,6 +59,8 @@ public class ChatActivity extends BaseActivity {
     private String chattingWithRole;
     private String currentUserRole;
     private boolean isStudentUser;
+    private int primaryColor;
+    private int primaryDarkColor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +68,9 @@ public class ChatActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityChatBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        resolveThemeColors();
+        applyDynamicTheming();
 
         chattingWithRole = getIntent().getStringExtra("chatting_with_role");
         studentRoll = getIntent().getStringExtra("student_roll");
@@ -79,6 +98,83 @@ public class ChatActivity extends BaseActivity {
         setupSendButton();
     }
 
+    private void resolveThemeColors() {
+        int defaultPrimary = HallThemeManager.getActivePrimaryColor(this);
+        int defaultDark = HallThemeManager.getActivePrimaryDarkColor(this);
+
+        Intent intent = getIntent();
+        int colorExtra = 0;
+        int darkExtra = 0;
+
+        if (intent != null) {
+            colorExtra = intent.getIntExtra(EXTRA_PRIMARY_COLOR, 0);
+            if (colorExtra == 0) {
+                colorExtra = intent.getIntExtra("extra_primary_color", 0);
+            }
+            darkExtra = intent.getIntExtra(EXTRA_PRIMARY_DARK_COLOR, 0);
+            if (darkExtra == 0) {
+                darkExtra = intent.getIntExtra("extra_primary_dark_color", 0);
+            }
+        }
+
+        if (colorExtra != 0) {
+            primaryColor = colorExtra;
+        } else {
+            primaryColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, defaultPrimary);
+        }
+
+        if (darkExtra != 0) {
+            primaryDarkColor = darkExtra;
+        } else {
+            primaryDarkColor = getThemeColor(com.google.android.material.R.attr.colorPrimaryVariant, defaultDark);
+        }
+    }
+
+    private void applyDynamicTheming() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(primaryDarkColor);
+        }
+
+        binding.toolbarChat.setBackgroundColor(primaryColor);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setBackgroundDrawable(new ColorDrawable(primaryColor));
+        }
+
+        Drawable sendBg = binding.btnChatSend.getBackground();
+        if (sendBg != null) {
+            DrawableCompat.setTint(DrawableCompat.wrap(sendBg.mutate()), primaryColor);
+        }
+        ViewCompat.setBackgroundTintList(binding.btnChatSend, ColorStateList.valueOf(primaryColor));
+        ImageViewCompat.setImageTintList(binding.btnChatSend, ColorStateList.valueOf(Color.WHITE));
+
+        setupMessageInputField(primaryColor);
+    }
+
+    private void setupMessageInputField(int primaryColor) {
+        float r = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 22, getResources().getDisplayMetrics());
+        float strokeDefault = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1, getResources().getDisplayMetrics());
+        float strokeFocused = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.5f, getResources().getDisplayMetrics());
+
+        GradientDrawable defaultBg = new GradientDrawable();
+        defaultBg.setCornerRadius(r);
+        defaultBg.setColor(Color.parseColor("#F5F5F5"));
+        defaultBg.setStroke((int) strokeDefault, Color.parseColor("#E0E0E0"));
+        binding.etChatMessage.setBackground(defaultBg);
+
+        binding.etChatMessage.setOnFocusChangeListener((v, hasFocus) -> {
+            GradientDrawable gd = new GradientDrawable();
+            gd.setCornerRadius(r);
+            if (hasFocus) {
+                gd.setColor(Color.WHITE);
+                gd.setStroke((int) strokeFocused, primaryColor);
+            } else {
+                gd.setColor(Color.parseColor("#F5F5F5"));
+                gd.setStroke((int) strokeDefault, Color.parseColor("#E0E0E0"));
+            }
+            binding.etChatMessage.setBackground(gd);
+        });
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -90,6 +186,11 @@ public class ChatActivity extends BaseActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         if (intent != null) {
+            resolveThemeColors();
+            applyDynamicTheming();
+            if (chatAdapter != null) {
+                chatAdapter.setPrimaryThemeColor(primaryColor);
+            }
             String newRole = intent.getStringExtra("chatting_with_role");
             String newRoll = intent.getStringExtra("student_roll");
             if (newRole != null) {
@@ -122,11 +223,45 @@ public class ChatActivity extends BaseActivity {
                     .child(cleanRoll)
                     .child("unreadCount")
                     .setValue(0);
+            FirebaseDatabase.getInstance(RTDB_URL).getReference("chats").child(cleanRoll)
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            for (DataSnapshot child : snapshot.getChildren()) {
+                                String senderRole = child.child("senderRole").getValue(String.class);
+                                Boolean read = child.child("read").getValue(Boolean.class);
+                                if ("admin".equalsIgnoreCase(senderRole) && (read == null || !read)) {
+                                    child.getRef().child("read").setValue(true);
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                        }
+                    });
         } else {
             FirebaseDatabase.getInstance(RTDB_URL).getReference("admin_chat_list")
                     .child(cleanRoll)
                     .child("unreadCount")
                     .setValue(0);
+            FirebaseDatabase.getInstance(RTDB_URL).getReference("chats").child(cleanRoll)
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot snapshot) {
+                            for (DataSnapshot child : snapshot.getChildren()) {
+                                String senderRole = child.child("senderRole").getValue(String.class);
+                                Boolean read = child.child("read").getValue(Boolean.class);
+                                if ("student".equalsIgnoreCase(senderRole) && (read == null || !read)) {
+                                    child.getRef().child("read").setValue(true);
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                        }
+                    });
         }
     }
 
@@ -143,7 +278,7 @@ public class ChatActivity extends BaseActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(true);
         binding.recyclerViewChat.setLayoutManager(layoutManager);
-        chatAdapter = new ChatMessageAdapter(messageList, currentUserRole);
+        chatAdapter = new ChatMessageAdapter(messageList, currentUserRole, primaryColor);
         binding.recyclerViewChat.setAdapter(chatAdapter);
     }
 
@@ -164,6 +299,13 @@ public class ChatActivity extends BaseActivity {
                     ChatMessage msg = child.getValue(ChatMessage.class);
                     if (msg != null) {
                         messageList.add(msg);
+                    }
+                    if (isStudentUser) {
+                        String senderRole = child.child("senderRole").getValue(String.class);
+                        Boolean read = child.child("read").getValue(Boolean.class);
+                        if ("admin".equalsIgnoreCase(senderRole) && (read == null || !read)) {
+                            child.getRef().child("read").setValue(true);
+                        }
                     }
                 }
                 chatAdapter.notifyDataSetChanged();
@@ -201,7 +343,7 @@ public class ChatActivity extends BaseActivity {
         DatabaseReference newMsgRef = messagesRef.push();
         String messageId = newMsgRef.getKey();
 
-        ChatMessage chatMessage = new ChatMessage(messageId, currentUserRole, messageText, timestamp);
+        ChatMessage chatMessage = new ChatMessage(messageId, currentUserRole, messageText, timestamp, false);
         newMsgRef.setValue(chatMessage);
 
         Map<String, Object> chatListEntry = new HashMap<>();

@@ -10,7 +10,7 @@
         android:id="@+id/toolbarChat"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="#B71C1C"
+        android:background="?attr/colorPrimary"
         android:elevation="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"

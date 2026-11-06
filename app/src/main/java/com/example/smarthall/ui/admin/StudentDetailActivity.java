@@ -3,6 +3,7 @@ package com.example.smarthall.ui.admin;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -262,7 +263,8 @@ public class StudentDetailActivity extends BaseActivity {
                         Toast.LENGTH_LONG).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "Error allocating seat: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("StudentDetail", "Error allocating seat", e);
+            Toast.makeText(this, "An unexpected error occurred. Please try again.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -276,7 +278,8 @@ public class StudentDetailActivity extends BaseActivity {
             Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone));
             startActivity(intent);
         } catch (Exception e) {
-            Toast.makeText(this, "Unable to open dialer: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e("StudentDetail", "Unable to open dialer", e);
+            Toast.makeText(this, "Unable to open phone dialer.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -291,7 +294,8 @@ public class StudentDetailActivity extends BaseActivity {
             intent.putExtra(Intent.EXTRA_SUBJECT, "Amar Ekushey Hall Administration Notice");
             startActivity(Intent.createChooser(intent, "Send Email"));
         } catch (Exception e) {
-            Toast.makeText(this, "Unable to open email client: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e("StudentDetail", "Unable to open email client", e);
+            Toast.makeText(this, "Unable to open email app.", Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -55,9 +55,8 @@ public class FcmNotificationSender {
             } catch (Exception e) {
                 Log.e("FCM_AUTH", "Failed to obtain OAuth2 token", e);
                 if (context != null) {
-                    String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                     new Handler(Looper.getMainLooper()).post(() ->
-                            Toast.makeText(context, "OAuth2 Token Failed: " + errorMsg, Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
                     );
                 }
                 return;
@@ -97,7 +96,7 @@ public class FcmNotificationSender {
                         Log.e("FCM_HTTP", "FCM delivery failed with code: " + code + " | body: " + errorBody);
                         if (context != null) {
                             new Handler(Looper.getMainLooper()).post(() ->
-                                    Toast.makeText(context, "FCM Error " + code + ": " + errorBody, Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
                             );
                         }
                     }
@@ -105,9 +104,8 @@ public class FcmNotificationSender {
             } catch (Exception e) {
                 Log.e("FCM_HTTP", "Failed to send FCM notification", e);
                 if (context != null) {
-                    String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                     new Handler(Looper.getMainLooper()).post(() ->
-                            Toast.makeText(context, "Network Error: " + errorMsg, Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
                     );
                 }
             }
