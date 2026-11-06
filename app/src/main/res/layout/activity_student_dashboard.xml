@@ -51,6 +51,22 @@
                 app:contentInsetStart="0dp"
                 app:contentInsetEnd="0dp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSos"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:text="SOS"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="#D32F2F"
+                app:cornerRadius="18dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+
             <FrameLayout
                 android:id="@+id/layoutTopChat"
                 android:layout_width="40dp"
