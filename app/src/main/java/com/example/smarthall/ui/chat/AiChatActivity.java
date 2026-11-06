@@ -1,9 +1,9 @@
 package com.example.smarthall.ui.chat;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -24,6 +24,7 @@ import com.google.ai.client.generativeai.GenerativeModel;
 import com.google.ai.client.generativeai.java.GenerativeModelFutures;
 import com.google.ai.client.generativeai.type.Content;
 import com.google.ai.client.generativeai.type.GenerateContentResponse;
+import com.google.ai.client.generativeai.type.RequestOptions;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -62,6 +63,8 @@ public class AiChatActivity extends BaseActivity {
     private ValueEventListener chatListener;
     private GenerativeModelFutures geminiModel;
     private String studentRoll;
+    private String studentName;
+    private String hallName;
     private int primaryColor;
     private int primaryDarkColor;
 
@@ -74,12 +77,42 @@ public class AiChatActivity extends BaseActivity {
         primaryColor = HallThemeManager.getActivePrimaryColor(this);
         primaryDarkColor = HallThemeManager.getActivePrimaryDarkColor(this);
 
-        studentRoll = getIntent().getStringExtra("student_roll");
+        Intent intent = getIntent();
+        if (intent != null) {
+            studentRoll = intent.getStringExtra("student_roll");
+            studentName = intent.getStringExtra("student_name");
+            hallName = intent.getStringExtra("hall_name");
+        }
+
+        if (TextUtils.isEmpty(studentRoll)) {
+            SharedPreferences userSession = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+            studentRoll = userSession.getString("roll", userSession.getString("student_roll", ""));
+            if (TextUtils.isEmpty(studentName)) {
+                studentName = userSession.getString("student_name", userSession.getString("name", ""));
+            }
+            if (TextUtils.isEmpty(hallName)) {
+                hallName = userSession.getString("hall_name", "");
+            }
+        }
+
         if (TextUtils.isEmpty(studentRoll)) {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null) {
-                SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
-                studentRoll = prefs.getString("student_roll", "");
+                SharedPreferences studentPrefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
+                studentRoll = studentPrefs.getString("student_roll", "");
+                if (TextUtils.isEmpty(studentName)) {
+                    studentName = studentPrefs.getString("student_name", "");
+                }
+                if (TextUtils.isEmpty(hallName)) {
+                    hallName = studentPrefs.getString("hall_name", "");
+                }
+            }
+        }
+
+        if (TextUtils.isEmpty(studentRoll)) {
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null && !TextUtils.isEmpty(user.getUid())) {
+                studentRoll = user.getUid();
             }
         }
 
@@ -92,6 +125,9 @@ public class AiChatActivity extends BaseActivity {
     }
 
     private void applyTheming() {
+        if (binding == null) {
+            return;
+        }
         binding.toolbarAiChat.setBackgroundColor(primaryColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(primaryDarkColor);
@@ -116,56 +152,72 @@ public class AiChatActivity extends BaseActivity {
     }
 
     private void setupGemini() {
-        Content systemInstruction = new Content.Builder()
-                .addText(SYSTEM_INSTRUCTION_TEXT)
-                .build();
+        try {
+            Content systemInstruction = new Content.Builder()
+                    .addText(SYSTEM_INSTRUCTION_TEXT)
+                    .build();
 
-        GenerativeModel gm = new GenerativeModel(
-                GEMINI_MODEL_NAME,
-                GEMINI_API_KEY,
-                null,
-                null,
-                null,
-                null,
-                null,
-                systemInstruction
-        );
+            GenerativeModel gm = new GenerativeModel(
+                    GEMINI_MODEL_NAME,
+                    GEMINI_API_KEY,
+                    null,
+                    null,
+                    new RequestOptions(),
+                    null,
+                    null,
+                    systemInstruction
+            );
 
-        geminiModel = GenerativeModelFutures.from(gm);
+            geminiModel = GenerativeModelFutures.from(gm);
+        } catch (Exception e) {
+            Log.e("AiChatActivity", "Failed to initialize Gemini GenerativeModel", e);
+        }
     }
 
     private void setupFirebaseRealtimeDatabase() {
         if (TextUtils.isEmpty(studentRoll)) {
+            Log.w("AiChatActivity", "Cannot initialize Realtime Database: studentRoll is null or empty");
             return;
         }
 
-        String cleanRoll = studentRoll.trim().replaceAll("\\s+", "");
-        FirebaseDatabase database = FirebaseDatabase.getInstance(RTDB_URL);
-        aiChatRef = database.getReference("ai_chats").child(cleanRoll);
+        String cleanRoll = studentRoll.trim().replaceAll("[.#$\\[\\]/\\s+]", "_");
+        if (TextUtils.isEmpty(cleanRoll)) {
+            Log.w("AiChatActivity", "Cannot initialize Realtime Database: cleanRoll is empty");
+            return;
+        }
 
-        chatListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                messageList.clear();
-                for (DataSnapshot child : snapshot.getChildren()) {
-                    ChatMessage msg = child.getValue(ChatMessage.class);
-                    if (msg != null) {
-                        messageList.add(msg);
+        try {
+            FirebaseDatabase database = FirebaseDatabase.getInstance(RTDB_URL);
+            aiChatRef = database.getReference("ai_chats").child(cleanRoll);
+
+            chatListener = new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    messageList.clear();
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        ChatMessage msg = child.getValue(ChatMessage.class);
+                        if (msg != null) {
+                            messageList.add(msg);
+                        }
+                    }
+                    if (adapter != null) {
+                        adapter.notifyDataSetChanged();
+                    }
+                    if (!messageList.isEmpty() && binding != null && binding.recyclerViewAiChat != null) {
+                        binding.recyclerViewAiChat.scrollToPosition(messageList.size() - 1);
                     }
                 }
-                adapter.notifyDataSetChanged();
-                if (!messageList.isEmpty()) {
-                    binding.recyclerViewAiChat.scrollToPosition(messageList.size() - 1);
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e("AiChatActivity", "Failed to load chat history", error.toException());
                 }
-            }
+            };
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e("AiChatActivity", "Failed to load chat history", error.toException());
-            }
-        };
-
-        aiChatRef.addValueEventListener(chatListener);
+            aiChatRef.addValueEventListener(chatListener);
+        } catch (Exception e) {
+            Log.e("AiChatActivity", "Error initializing Firebase Realtime Database reference", e);
+        }
     }
 
     private void setupSendButton() {
@@ -173,16 +225,29 @@ public class AiChatActivity extends BaseActivity {
     }
 
     private void sendMessage() {
+        if (binding == null) {
+            return;
+        }
+
         String text = binding.etChatMessage.getText().toString().trim();
         if (TextUtils.isEmpty(text)) {
+            return;
+        }
+
+        if (geminiModel == null) {
+            Toast.makeText(this, "AI Assistant is initializing. Please try again.", Toast.LENGTH_SHORT).show();
+            setupGemini();
             return;
         }
 
         binding.etChatMessage.setText("");
 
         if (aiChatRef == null) {
-            Toast.makeText(this, "Student roll not found.", Toast.LENGTH_SHORT).show();
-            return;
+            setupFirebaseRealtimeDatabase();
+            if (aiChatRef == null) {
+                Toast.makeText(this, "Student profile could not be loaded. Please re-open the chat.", Toast.LENGTH_SHORT).show();
+                return;
+            }
         }
 
         String userMsgId = aiChatRef.push().getKey();
@@ -196,41 +261,59 @@ public class AiChatActivity extends BaseActivity {
             binding.recyclerViewAiChat.smoothScrollToPosition(messageList.size() - 1);
         }
 
-        Content userContent = new Content.Builder()
-                .addText(text)
-                .build();
+        try {
+            Content userContent = new Content.Builder()
+                    .addText(text)
+                    .build();
 
-        ListenableFuture<GenerateContentResponse> response = geminiModel.generateContent(userContent);
-        Futures.addCallback(response, new FutureCallback<GenerateContentResponse>() {
-            @Override
-            public void onSuccess(GenerateContentResponse result) {
-                runOnUiThread(() -> {
-                    binding.layoutAiTyping.setVisibility(View.GONE);
-                    String aiReply = result != null ? result.getText() : null;
-                    if (aiReply == null || aiReply.trim().isEmpty()) {
-                        aiReply = "I could not generate a response. Please try again.";
-                    }
+            ListenableFuture<GenerateContentResponse> response = geminiModel.generateContent(userContent);
+            Futures.addCallback(response, new FutureCallback<GenerateContentResponse>() {
+                @Override
+                public void onSuccess(GenerateContentResponse result) {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        if (binding != null) {
+                            binding.layoutAiTyping.setVisibility(View.GONE);
+                        }
+                        String aiReply = result != null ? result.getText() : null;
+                        if (aiReply == null || aiReply.trim().isEmpty()) {
+                            aiReply = "I could not generate a response. Please try again.";
+                        }
 
-                    String aiMsgId = aiChatRef.push().getKey();
-                    ChatMessage aiMsg = new ChatMessage(aiMsgId, "ai", aiReply.trim(), System.currentTimeMillis(), true);
-                    if (aiMsgId != null) {
-                        aiChatRef.child(aiMsgId).setValue(aiMsg);
-                    }
-                    if (!messageList.isEmpty()) {
-                        binding.recyclerViewAiChat.smoothScrollToPosition(messageList.size() - 1);
-                    }
-                });
-            }
+                        if (aiChatRef != null) {
+                            String aiMsgId = aiChatRef.push().getKey();
+                            ChatMessage aiMsg = new ChatMessage(aiMsgId, "ai", aiReply.trim(), System.currentTimeMillis(), true);
+                            if (aiMsgId != null) {
+                                aiChatRef.child(aiMsgId).setValue(aiMsg);
+                            }
+                        }
+                        if (!messageList.isEmpty() && binding != null) {
+                            binding.recyclerViewAiChat.smoothScrollToPosition(messageList.size() - 1);
+                        }
+                    });
+                }
 
-            @Override
-            public void onFailure(Throwable t) {
-                runOnUiThread(() -> {
-                    binding.layoutAiTyping.setVisibility(View.GONE);
-                    Log.e("AiChatActivity", "Gemini API call failed", t);
-                    Toast.makeText(AiChatActivity.this, "Unable to get response from AI. Please try again.", Toast.LENGTH_SHORT).show();
-                });
-            }
-        }, ContextCompat.getMainExecutor(this));
+                @Override
+                public void onFailure(Throwable t) {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        if (binding != null) {
+                            binding.layoutAiTyping.setVisibility(View.GONE);
+                        }
+                        Log.e("AiChatActivity", "Gemini API call failed", t);
+                        Toast.makeText(AiChatActivity.this, "Unable to get response from AI. Please try again.", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }, ContextCompat.getMainExecutor(this));
+        } catch (Exception e) {
+            Log.e("AiChatActivity", "Failed to dispatch generateContent request", e);
+            binding.layoutAiTyping.setVisibility(View.GONE);
+            Toast.makeText(this, "Failed to send message. Please try again.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

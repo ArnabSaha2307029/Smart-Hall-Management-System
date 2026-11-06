@@ -696,6 +696,12 @@ public class StudentDashboardActivity extends BaseActivity {
     private void launchChatSelection() {
         Intent intent = new Intent(this, ChatSelectionActivity.class);
         intent.putExtra("student_roll", getActiveStudentRoll());
+        if (student != null) {
+            intent.putExtra("student_name", student.getName());
+            intent.putExtra("hall_name", student.getHallName());
+        } else {
+            intent.putExtra("hall_name", getString(R.string.hall_name));
+        }
         intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
         intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
         startActivity(intent);

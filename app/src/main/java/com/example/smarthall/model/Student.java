@@ -14,6 +14,7 @@ public class Student {
     private String boarderNo;
     private String dining;
     private String profileImageBase64;
+    private String hallName;
 
     public Student() {
     }
@@ -94,6 +95,9 @@ public class Student {
 
     public String getProfileImageBase64() { return profileImageBase64; }
     public void setProfileImageBase64(String profileImageBase64) { this.profileImageBase64 = profileImageBase64; }
+
+    public String getHallName() { return hallName != null && !hallName.isEmpty() ? hallName : "Amar Ekushey Hall"; }
+    public void setHallName(String hallName) { this.hallName = hallName; }
 
     private String allocationStatus;
 

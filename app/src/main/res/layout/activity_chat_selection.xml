@@ -93,34 +93,21 @@
 
                     </FrameLayout>
 
-                    <LinearLayout
+                    <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Chat with Admin"
-                            android:textColor="#212121"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Direct messaging with hall administration and staff"
-                            android:textColor="#757575"
-                            android:textSize="13sp" />
-
-                    </LinearLayout>
+                        android:text="Chat with Admin"
+                        android:textColor="#212121"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
+                        android:layout_gravity="center_vertical"
                         android:contentDescription="Go"
                         android:src="@drawable/ic_chevron_right"
                         app:tint="#9E9E9E" />
@@ -162,34 +149,21 @@
 
                     </FrameLayout>
 
-                    <LinearLayout
+                    <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="SmartHall AI Assistant"
-                            android:textColor="#212121"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="24/7 instant guidance on hall rules, meals, and features"
-                            android:textColor="#757575"
-                            android:textSize="13sp" />
-
-                    </LinearLayout>
+                        android:text="SmartHall AI Assistant"
+                        android:textColor="#212121"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
+                        android:layout_gravity="center_vertical"
                         android:contentDescription="Go"
                         android:src="@drawable/ic_chevron_right"
                         app:tint="#9E9E9E" />
