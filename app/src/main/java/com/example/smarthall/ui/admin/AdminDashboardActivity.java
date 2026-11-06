@@ -1,7 +1,8 @@
 package com.example.smarthall.ui.admin;
 
 import android.Manifest;
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -155,13 +156,13 @@ public class AdminDashboardActivity extends BaseActivity {
 
         repository = HallRepository.getInstance();
         FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
-        noticeRef = database.getReference("hall_announcements");
+        noticeRef = database.getReference("notices");
+        migrateLegacyNoticesIfNeeded(database);
 
         setupHeader();
         setupNavigationDrawer();
         setupRecyclerViews();
         setupTabButtons();
-        setupBroadcastNotice();
         setupNoticesListener();
         setupStudentsListener();
         setupComplaintsListener();
@@ -355,9 +356,57 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.rvComplaints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvComplaints.setAdapter(complaintAdapter);
 
-        noticeAdapter = new FirebaseNoticeAdapter(noticeList);
+        noticeAdapter = new FirebaseNoticeAdapter(noticeList, true, this::showDeleteNoticeDialog);
         binding.rvNotices.setLayoutManager(new LinearLayoutManager(this));
         binding.rvNotices.setAdapter(noticeAdapter);
+    }
+
+    private void migrateLegacyNoticesIfNeeded(FirebaseDatabase database) {
+        database.getReference("hall_announcements").addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists() && snapshot.hasChildren()) {
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        NoticeModel model = child.getValue(NoticeModel.class);
+                        if (model != null && child.getKey() != null) {
+                            database.getReference("notices").child(child.getKey()).setValue(model);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("AdminDashboard", "Failed to migrate legacy announcements", error.toException());
+            }
+        });
+    }
+
+    private void showDeleteNoticeDialog(NoticeModel notice) {
+        if (notice == null || TextUtils.isEmpty(notice.getId())) {
+            Toast.makeText(this, "Cannot delete notice: Invalid notice", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Notice")
+                .setMessage("Are you sure you want to permanently delete this notice?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    String noticeId = notice.getId();
+                    FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+                    database.getReference("notices").child(noticeId).removeValue()
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(AdminDashboardActivity.this, "Notice deleted successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e("AdminDashboard", "Failed to delete notice", e);
+                                Toast.makeText(AdminDashboardActivity.this, "Failed to delete notice. Please try again.", Toast.LENGTH_SHORT).show();
+                            });
+                    database.getReference("hall_announcements").child(noticeId).removeValue();
+                    database.getReference("hall_notices").child(noticeId).removeValue();
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
     private void setupNoticesListener() {
@@ -396,54 +445,6 @@ public class AdminDashboardActivity extends BaseActivity {
         binding.btnTabComplaints.setOnClickListener(v -> switchTab(TAB_COMPLAINTS));
         binding.btnTabNotices.setOnClickListener(v -> switchTab(TAB_NOTICES));
         binding.btnAddNotice.setOnClickListener(v -> showAddNoticeDialog());
-    }
-
-    private void setupBroadcastNotice() {
-        binding.btnBroadcastNotice.setOnClickListener(v -> {
-            String title = binding.etNoticeTitle.getText() != null
-                    ? binding.etNoticeTitle.getText().toString().trim()
-                    : "";
-            String message = binding.etNoticeMessage.getText() != null
-                    ? binding.etNoticeMessage.getText().toString().trim()
-                    : "";
-
-            if (TextUtils.isEmpty(title)) {
-                binding.etNoticeTitle.setError("Notice title is required");
-                binding.etNoticeTitle.requestFocus();
-                return;
-            }
-
-            if (TextUtils.isEmpty(message)) {
-                binding.etNoticeMessage.setError("Notice content is required");
-                binding.etNoticeMessage.requestFocus();
-                return;
-            }
-
-            FirebaseAuth auth = FirebaseAuth.getInstance();
-            String poster = auth.getCurrentUser() != null && auth.getCurrentUser().getEmail() != null
-                    ? auth.getCurrentUser().getEmail()
-                    : "Admin";
-
-            String id = noticeRef.push().getKey();
-            if (id == null) {
-                Toast.makeText(AdminDashboardActivity.this, "Failed to generate notice ID", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            NoticeModel noticeModel = new NoticeModel(id, title, message, poster, System.currentTimeMillis());
-
-            noticeRef.child(id).setValue(noticeModel).addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, id, title, message, poster, noticeModel.getTimestamp());
-                    binding.etNoticeTitle.setText("");
-                    binding.etNoticeMessage.setText("");
-                    Toast.makeText(AdminDashboardActivity.this, "Emergency notice broadcasted live", Toast.LENGTH_SHORT).show();
-                } else {
-                    Log.e("AdminDashboard", "Failed to broadcast notice", task.getException());
-                    Toast.makeText(AdminDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
-                }
-            });
-        });
     }
 
     private void switchTab(int tab) {
@@ -550,7 +551,7 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void showAddNoticeDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Add New Notice");
 
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_notice, null);

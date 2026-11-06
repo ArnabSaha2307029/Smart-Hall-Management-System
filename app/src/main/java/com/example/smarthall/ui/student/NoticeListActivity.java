@@ -1,9 +1,15 @@
 package com.example.smarthall.ui.student;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.smarthall.databinding.ActivityNoticeListBinding;
@@ -11,6 +17,7 @@ import com.example.smarthall.model.NoticeModel;
 import com.example.smarthall.ui.adapters.FirebaseNoticeAdapter;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.ThemeHelper;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -41,7 +48,10 @@ public class NoticeListActivity extends BaseActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
-        adapter = new FirebaseNoticeAdapter(new ArrayList<>());
+        SharedPreferences prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+        boolean isAdmin = "admin".equalsIgnoreCase(prefs.getString("user_role", "student"));
+
+        adapter = new FirebaseNoticeAdapter(new ArrayList<>(), isAdmin, isAdmin ? this::showDeleteNoticeDialog : null);
         binding.rvNotices.setLayoutManager(new LinearLayoutManager(this));
         binding.rvNotices.setAdapter(adapter);
 
@@ -49,12 +59,12 @@ public class NoticeListActivity extends BaseActivity {
         binding.rvNotices.setVisibility(View.GONE);
         binding.tvNoNotices.setVisibility(View.GONE);
 
-        noticesRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
-                .getReference("hall_announcements");
+        FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+        noticesRef = database.getReference("notices");
 
         noticesListener = new ValueEventListener() {
             @Override
-            public void onDataChange(DataSnapshot snapshot) {
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<NoticeModel> notices = new ArrayList<>();
                 for (DataSnapshot child : snapshot.getChildren()) {
                     NoticeModel notice = child.getValue(NoticeModel.class);
@@ -62,7 +72,7 @@ public class NoticeListActivity extends BaseActivity {
                         notices.add(notice);
                     }
                 }
-                Collections.reverse(notices);
+                Collections.sort(notices, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
                 binding.progressBar.setVisibility(View.GONE);
                 if (notices.isEmpty()) {
                     binding.tvNoNotices.setVisibility(View.VISIBLE);
@@ -75,7 +85,7 @@ public class NoticeListActivity extends BaseActivity {
             }
 
             @Override
-            public void onCancelled(DatabaseError error) {
+            public void onCancelled(@NonNull DatabaseError error) {
                 binding.progressBar.setVisibility(View.GONE);
                 binding.tvNoNotices.setVisibility(View.VISIBLE);
                 binding.rvNotices.setVisibility(View.GONE);
@@ -83,6 +93,33 @@ public class NoticeListActivity extends BaseActivity {
         };
 
         noticesRef.addValueEventListener(noticesListener);
+    }
+
+    private void showDeleteNoticeDialog(NoticeModel notice) {
+        if (notice == null || TextUtils.isEmpty(notice.getId())) {
+            Toast.makeText(this, "Cannot delete notice: Invalid notice", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Delete Notice")
+                .setMessage("Are you sure you want to permanently delete this notice?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    String noticeId = notice.getId();
+                    FirebaseDatabase database = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+                    database.getReference("notices").child(noticeId).removeValue()
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(NoticeListActivity.this, "Notice deleted successfully", Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e("NoticeListActivity", "Failed to delete notice", e);
+                                Toast.makeText(NoticeListActivity.this, "Failed to delete notice. Please try again.", Toast.LENGTH_SHORT).show();
+                            });
+                    database.getReference("hall_announcements").child(noticeId).removeValue();
+                    database.getReference("hall_notices").child(noticeId).removeValue();
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
     @Override

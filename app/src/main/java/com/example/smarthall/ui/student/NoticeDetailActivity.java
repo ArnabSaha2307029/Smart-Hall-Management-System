@@ -1,10 +1,8 @@
 package com.example.smarthall.ui.student;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -12,12 +10,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.NonNull;
 
 import com.example.smarthall.databinding.ActivityNoticeDetailBinding;
 import com.example.smarthall.model.NoticeModel;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.util.ThemeHelper;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -94,19 +93,12 @@ public class NoticeDetailActivity extends BaseActivity {
     }
 
     private void showDeleteNoticeConfirmation() {
-        AlertDialog dialog = new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("Delete Notice")
-                .setMessage("Are you sure you want to delete this notice?")
+                .setMessage("Are you sure you want to permanently delete this notice?")
                 .setPositiveButton("Delete", (d, which) -> deleteNotice())
                 .setNegativeButton("Cancel", (d, which) -> d.dismiss())
-                .create();
-        dialog.show();
-        if (dialog.getButton(DialogInterface.BUTTON_POSITIVE) != null) {
-            dialog.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(Color.parseColor("#D32F2F"));
-        }
-        if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
-            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(Color.parseColor("#757575"));
-        }
+                .show();
     }
 
     private void deleteNotice() {
@@ -116,18 +108,19 @@ public class NoticeDetailActivity extends BaseActivity {
         }
 
         binding.btnDeleteNotice.setEnabled(false);
-        FirebaseDatabase.getInstance(RTDB_URL).getReference("hall_notices").child(noticeId).removeValue();
-        FirebaseDatabase.getInstance(RTDB_URL).getReference("hall_announcements").child(noticeId).removeValue()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(this, "Notice deleted", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        binding.btnDeleteNotice.setEnabled(true);
-                        Log.e("NoticeDetail", "Failed to delete notice", task.getException());
-                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
-                    }
+        FirebaseDatabase database = FirebaseDatabase.getInstance(RTDB_URL);
+        database.getReference("notices").child(noticeId).removeValue()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Notice deleted successfully", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    binding.btnDeleteNotice.setEnabled(true);
+                    Log.e("NoticeDetail", "Failed to delete notice", e);
+                    Toast.makeText(this, "Failed to delete notice. Please try again.", Toast.LENGTH_SHORT).show();
                 });
+        database.getReference("hall_notices").child(noticeId).removeValue();
+        database.getReference("hall_announcements").child(noticeId).removeValue();
     }
 
     private void populateUI(String title, String poster, long timestamp, String message) {
@@ -145,12 +138,12 @@ public class NoticeDetailActivity extends BaseActivity {
 
     private void fetchNoticeFromFirebase(String id) {
         this.noticeId = id;
-        FirebaseDatabase.getInstance(RTDB_URL)
-                .getReference("hall_announcements")
+        FirebaseDatabase database = FirebaseDatabase.getInstance(RTDB_URL);
+        database.getReference("notices")
                 .child(id)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
-                    public void onDataChange(DataSnapshot snapshot) {
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
                         if (snapshot.exists()) {
                             NoticeModel notice = snapshot.getValue(NoticeModel.class);
                             if (notice != null) {
@@ -159,11 +152,32 @@ public class NoticeDetailActivity extends BaseActivity {
                                 }
                                 populateUI(notice.getTitle(), notice.getPostedBy(), notice.getTimestamp(), notice.getMessage());
                             }
+                        } else {
+                            database.getReference("hall_announcements")
+                                    .child(id)
+                                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(@NonNull DataSnapshot legacySnapshot) {
+                                            if (legacySnapshot.exists()) {
+                                                NoticeModel legacyNotice = legacySnapshot.getValue(NoticeModel.class);
+                                                if (legacyNotice != null) {
+                                                    if (legacyNotice.getId() != null && !legacyNotice.getId().isEmpty()) {
+                                                        noticeId = legacyNotice.getId();
+                                                    }
+                                                    populateUI(legacyNotice.getTitle(), legacyNotice.getPostedBy(), legacyNotice.getTimestamp(), legacyNotice.getMessage());
+                                                }
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onCancelled(@NonNull DatabaseError error) {
+                                        }
+                                    });
                         }
                     }
 
                     @Override
-                    public void onCancelled(DatabaseError error) {
+                    public void onCancelled(@NonNull DatabaseError error) {
                     }
                 });
     }
