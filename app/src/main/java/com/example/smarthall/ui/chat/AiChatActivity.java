@@ -42,7 +42,7 @@ import java.util.List;
 public class AiChatActivity extends BaseActivity {
 
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
-    private static final String GEMINI_MODEL_NAME = "gemini-1.5-flash";
+    private static final String GEMINI_MODEL_NAME = "gemini-flash-latest";
     private static final String GEMINI_API_KEY = "AQ.Ab8RN6KZSwV0Q0ZmVJRgYpVJbLSdDxDKMHdwCZaJBX6MCdEh4g";
     private static final String SYSTEM_INSTRUCTION_TEXT =
             "You are the official AI Resident Assistant for 'SmartHall', a digital Hall Management System app. " +

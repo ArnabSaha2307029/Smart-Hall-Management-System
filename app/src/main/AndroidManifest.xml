@@ -124,12 +124,12 @@
 
         <activity
             android:name=".ui.chat.ChatSelectionActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="Chats" />
 
         <activity
             android:name=".ui.chat.AiChatActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="SmartHall AI Assistant"
             android:windowSoftInputMode="adjustResize" />
 
