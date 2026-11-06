@@ -65,7 +65,10 @@ dependencies {
     implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.github.yalantis:ucrop:2.2.8'
+    implementation 'com.google.ai.client.generativeai:generativeai:0.9.0'
+    implementation 'com.google.guava:guava:31.1-android'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
+

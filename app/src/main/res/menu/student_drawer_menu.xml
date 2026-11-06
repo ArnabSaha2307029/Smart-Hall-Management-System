@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_chat"
+        android:title="Chats"
+        android:icon="@drawable/ic_chat" />
     <group android:id="@+id/group_social_links">
         <item
             android:id="@+id/nav_link_google"
