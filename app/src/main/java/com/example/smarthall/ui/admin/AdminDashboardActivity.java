@@ -749,8 +749,62 @@ public class AdminDashboardActivity extends BaseActivity {
             startActivity(intent);
         });
 
+        final boolean[] isDiningManager = {student.isDiningManager()};
+        updateDiningManagerButton(dialogBinding.btnAssignDiningManager, isDiningManager[0]);
+
+        String studentRoll = roll;
+        String studentId = student.getId();
+
+        DatabaseReference rtdbStudentsRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+                .getReference("students");
+
+        if (!TextUtils.isEmpty(studentRoll)) {
+            rtdbStudentsRef.child(studentRoll).child("isDiningManager").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        Boolean val = snapshot.getValue(Boolean.class);
+                        isDiningManager[0] = Boolean.TRUE.equals(val);
+                        student.setDiningManager(isDiningManager[0]);
+                        updateDiningManagerButton(dialogBinding.btnAssignDiningManager, isDiningManager[0]);
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                }
+            });
+        }
+
         dialogBinding.btnAssignDiningManager.setOnClickListener(v -> {
-            Toast.makeText(this, "Dining Manager assignment will be available soon", Toast.LENGTH_SHORT).show();
+            if (TextUtils.isEmpty(studentRoll)) {
+                Toast.makeText(this, "Student roll not found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            boolean newStatus = !isDiningManager[0];
+            dialogBinding.btnAssignDiningManager.setEnabled(false);
+
+            rtdbStudentsRef.child(studentRoll).child("isDiningManager").setValue(newStatus)
+                    .addOnCompleteListener(task -> {
+                        dialogBinding.btnAssignDiningManager.setEnabled(true);
+                        if (task.isSuccessful()) {
+                            isDiningManager[0] = newStatus;
+                            student.setDiningManager(newStatus);
+                            updateDiningManagerButton(dialogBinding.btnAssignDiningManager, newStatus);
+                            String toastMsg = newStatus ? "Assigned as Dining Manager" : "Dining Manager role removed";
+                            Toast.makeText(AdminDashboardActivity.this, toastMsg, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Log.e("AdminDashboard", "Failed to update dining manager status", task.getException());
+                            Toast.makeText(AdminDashboardActivity.this, "Failed to update Dining Manager status. Please try again.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
+            if (!TextUtils.isEmpty(studentId) && !studentId.equals(studentRoll)) {
+                rtdbStudentsRef.child(studentId).child("isDiningManager").setValue(newStatus);
+                FirebaseFirestore.getInstance().collection("students").document(studentId).update("isDiningManager", newStatus);
+            }
+            FirebaseFirestore.getInstance().collection("students").document(studentRoll).update("isDiningManager", newStatus);
         });
 
         dialogBinding.btnDismissDetail.setOnClickListener(v -> {
@@ -758,6 +812,15 @@ public class AdminDashboardActivity extends BaseActivity {
         });
 
         dialog.show();
+    }
+
+    private void updateDiningManagerButton(com.google.android.material.button.MaterialButton button, boolean isManager) {
+        if (button == null) return;
+        if (isManager) {
+            button.setText("Remove Dining Manager");
+        } else {
+            button.setText("Assign as Dining Manager");
+        }
     }
 
     private void showAdminClosureDialog() {

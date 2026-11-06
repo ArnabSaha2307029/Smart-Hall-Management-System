@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
@@ -12,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.NotificationCompat;
 
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -65,6 +67,14 @@ public class SmartHallApp extends Application {
         createNotificationChannels();
         logDeviceToken();
         startSosServiceIfLoggedIn();
+
+        SharedPreferences prefs = getSharedPreferences("smart_hall_prefs", MODE_PRIVATE);
+        if (prefs.contains("night_mode")) {
+            boolean isDark = prefs.getBoolean("night_mode", false);
+            AppCompatDelegate.setDefaultNightMode(
+                    isDark ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO
+            );
+        }
     }
 
     private void startSosServiceIfLoggedIn() {

@@ -2,6 +2,8 @@ package com.example.smarthall.ui.auth;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -13,6 +15,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityLoginBinding;
@@ -22,12 +25,6 @@ import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
 import com.example.smarthall.util.ThemeHelper;
-import com.facebook.AccessToken;
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
-import com.facebook.login.LoginManager;
-import com.facebook.login.LoginResult;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -38,16 +35,20 @@ import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.FacebookAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.Arrays;
-
 public class LoginActivity extends BaseActivity {
+
+    private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
 
     private ActivityLoginBinding binding;
     private HallRepository repository;
@@ -55,7 +56,6 @@ public class LoginActivity extends BaseActivity {
     private FirebaseFirestore db;
     private GoogleSignInClient mGoogleSignInClient;
     private ActivityResultLauncher<Intent> googleSignInLauncher;
-    private CallbackManager callbackManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,27 +98,8 @@ public class LoginActivity extends BaseActivity {
                 }
         );
 
-        callbackManager = CallbackManager.Factory.create();
-        LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
-            @Override
-            public void onSuccess(LoginResult loginResult) {
-                handleFacebookAccessToken(loginResult.getAccessToken());
-            }
-
-            @Override
-            public void onCancel() {
-                restoreLoginForm();
-            }
-
-            @Override
-            public void onError(@NonNull FacebookException error) {
-                Log.e("AuthError", "Facebook sign-in error", error);
-                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
-                restoreLoginForm();
-            }
-        });
-
         setupClickListeners();
+        setupThemeToggle();
 
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
@@ -128,31 +109,7 @@ public class LoginActivity extends BaseActivity {
         }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (callbackManager != null) {
-            callbackManager.onActivityResult(requestCode, resultCode, data);
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-    }
-
     private void setupClickListeners() {
-        binding.btnDemoAdmin.setOnClickListener(v -> {
-            binding.radioAdmin.setChecked(true);
-            binding.etEmail.setText("adm@aeh.edu");
-            binding.etPassword.setText("adm123");
-            binding.tilEmail.setError(null);
-            binding.tilPassword.setError(null);
-        });
-
-        binding.btnDemoStudent.setOnClickListener(v -> {
-            binding.radioStudent.setChecked(true);
-            binding.etEmail.setText("saha2307029@stud.kuet.ac.bd");
-            binding.etPassword.setText("2307029");
-            binding.tilEmail.setError(null);
-            binding.tilPassword.setError(null);
-        });
-
         binding.btnLogin.setOnClickListener(v -> attemptLogin());
 
         binding.btnGoogleSignIn.setOnClickListener(v -> {
@@ -163,12 +120,21 @@ public class LoginActivity extends BaseActivity {
             });
         });
 
-        binding.btnFacebookSignIn.setOnClickListener(v -> {
-            binding.progressBar.setVisibility(View.VISIBLE);
-            LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("email", "public_profile"));
-        });
-
         binding.tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
+    }
+
+    private void setupThemeToggle() {
+        binding.btnThemeToggle.setOnClickListener(v -> {
+            int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+            boolean isNight = currentNightMode == Configuration.UI_MODE_NIGHT_YES;
+            boolean newNight = !isNight;
+            int targetMode = newNight ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO;
+            AppCompatDelegate.setDefaultNightMode(targetMode);
+            getSharedPreferences("smart_hall_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("night_mode", newNight)
+                    .apply();
+        });
     }
 
     private void attemptLogin() {
@@ -226,72 +192,88 @@ public class LoginActivity extends BaseActivity {
     }
 
     private void fetchUserRoleAndNavigate(String uid) {
-        db.collection("users").document(uid).get().addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                DocumentSnapshot document = task.getResult();
-                if (document != null && document.exists()) {
-                    String role = document.getString("role");
-                    if ("admin".equalsIgnoreCase(role)) {
-                        getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                                .edit()
-                                .putString("user_role", "admin")
-                                .apply();
-                        Intent intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
-                        intent.putExtra("EXTRA_USER_ID", uid);
-                        intent.putExtra("EXTRA_USER_ROLE", "ADMIN");
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                        finish();
-                    } else if ("student".equalsIgnoreCase(role)) {
-                        getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                                .edit()
-                                .putString("user_role", "student")
-                                .apply();
-                        Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
-                        intent.putExtra("EXTRA_USER_ID", uid);
-                        intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        Log.e("AuthError", "Unknown user role: " + role);
-                        Toast.makeText(LoginActivity.this, "An unexpected error occurred. Please try again.", Toast.LENGTH_SHORT).show();
-                        restoreLoginForm();
-                    }
+        if (TextUtils.isEmpty(uid)) {
+            restoreLoginForm();
+            return;
+        }
+
+        DatabaseReference adminsRef = FirebaseDatabase.getInstance(RTDB_URL)
+                .getReference("admins").child(uid);
+
+        adminsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    navigateToAdmin(uid);
                 } else {
-                    db.collection("students").document(uid).get().addOnCompleteListener(studentTask -> {
-                        if (studentTask.isSuccessful() && studentTask.getResult() != null && studentTask.getResult().exists()) {
-                            String roll = studentTask.getResult().getString("roll");
-                            if (TextUtils.isEmpty(roll)) {
-                                roll = studentTask.getResult().getString("rollNumber");
-                            }
-                            if (TextUtils.isEmpty(roll)) {
-                                roll = studentTask.getResult().getString("studentId");
-                            }
-                            if (!TextUtils.isEmpty(roll)) {
-                                getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                                        .edit()
-                                        .putString("roll", roll)
-                                        .putString("user_role", "student")
-                                        .apply();
-                                Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
-                                intent.putExtra("EXTRA_USER_ID", uid);
-                                intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                startActivity(intent);
-                                finish();
-                                return;
-                            }
+                    db.collection("users").document(uid).get().addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()
+                                && "admin".equalsIgnoreCase(task.getResult().getString("role"))) {
+                            navigateToAdmin(uid);
+                        } else {
+                            navigateToStudent(uid);
                         }
-                        Toast.makeText(LoginActivity.this, "User profile not registered in hall database", Toast.LENGTH_SHORT).show();
-                        restoreLoginForm();
                     });
                 }
-            } else {
-                Log.e("AuthError", "Failed to fetch user role", task.getException());
-                Toast.makeText(LoginActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
-                restoreLoginForm();
             }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("AuthError", "Failed to check admins node in RTDB", error.toException());
+                db.collection("users").document(uid).get().addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()
+                            && "admin".equalsIgnoreCase(task.getResult().getString("role"))) {
+                        navigateToAdmin(uid);
+                    } else {
+                        navigateToStudent(uid);
+                    }
+                });
+            }
+        });
+    }
+
+    private void navigateToAdmin(String uid) {
+        getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                .edit()
+                .putString("user_role", "admin")
+                .apply();
+        Intent intent = new Intent(LoginActivity.this, AdminDashboardActivity.class);
+        intent.putExtra("EXTRA_USER_ID", uid);
+        intent.putExtra("EXTRA_USER_ROLE", "ADMIN");
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void navigateToStudent(String uid) {
+        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
+            String roll = "";
+            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                DocumentSnapshot doc = task.getResult();
+                roll = doc.getString("roll");
+                if (TextUtils.isEmpty(roll)) {
+                    roll = doc.getString("rollNumber");
+                }
+                if (TextUtils.isEmpty(roll)) {
+                    roll = doc.getString("studentId");
+                }
+            }
+            SharedPreferences.Editor editor = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("user_role", "student");
+            if (!TextUtils.isEmpty(roll)) {
+                editor.putString("roll", roll);
+                editor.putString("student_roll", roll);
+                editor.putString("user_roll", roll);
+            }
+            editor.apply();
+
+            Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
+            intent.putExtra("EXTRA_USER_ID", uid);
+            intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
         });
     }
 
@@ -309,7 +291,7 @@ public class LoginActivity extends BaseActivity {
             if (task.isSuccessful()) {
                 FirebaseUser user = mAuth.getCurrentUser();
                 if (user != null) {
-                    verifyStudentProfileAndNavigate(user);
+                    fetchUserRoleAndNavigate(user.getUid());
                 } else {
                     restoreLoginForm();
                 }
@@ -318,59 +300,6 @@ public class LoginActivity extends BaseActivity {
                 Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
                 restoreLoginForm();
             }
-        });
-    }
-
-    private void handleFacebookAccessToken(AccessToken token) {
-        AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());
-        binding.btnLogin.setEnabled(false);
-        binding.progressBar.setVisibility(View.VISIBLE);
-        mAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                FirebaseUser user = mAuth.getCurrentUser();
-                if (user != null) {
-                    verifyStudentProfileAndNavigate(user);
-                } else {
-                    restoreLoginForm();
-                }
-            } else {
-                Log.e("AuthError", "Firebase auth with Facebook failed", task.getException());
-                Toast.makeText(LoginActivity.this, "Authentication failed. Please verify your credentials and try again.", Toast.LENGTH_SHORT).show();
-                restoreLoginForm();
-            }
-        });
-    }
-
-    private void verifyStudentProfileAndNavigate(FirebaseUser user) {
-        String uid = user.getUid();
-        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
-            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
-                DocumentSnapshot document = task.getResult();
-                String roll = document.getString("roll");
-                if (TextUtils.isEmpty(roll)) {
-                    roll = document.getString("rollNumber");
-                }
-                if (TextUtils.isEmpty(roll)) {
-                    roll = document.getString("studentId");
-                }
-                if (!TextUtils.isEmpty(roll)) {
-                    getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                            .edit()
-                            .putString("roll", roll)
-                            .putString("user_role", "student")
-                            .apply();
-                    Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
-                    intent.putExtra("EXTRA_USER_ID", uid);
-                    intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                    return;
-                }
-            }
-            mAuth.signOut();
-            Toast.makeText(LoginActivity.this, "No student profile linked. Please log in with your Roll/Password first and link your account from profile.", Toast.LENGTH_LONG).show();
-            restoreLoginForm();
         });
     }
 

@@ -95,6 +95,16 @@ public class Student {
     public String getProfileImageBase64() { return profileImageBase64; }
     public void setProfileImageBase64(String profileImageBase64) { this.profileImageBase64 = profileImageBase64; }
 
+    private boolean isDiningManager;
+
+    public boolean isDiningManager() {
+        return isDiningManager;
+    }
+
+    public void setDiningManager(boolean diningManager) {
+        this.isDiningManager = diningManager;
+    }
+
     private String allocationStatus;
 
     public String getRoom() {
