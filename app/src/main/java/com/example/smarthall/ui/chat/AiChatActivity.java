@@ -80,8 +80,17 @@ public class AiChatActivity extends BaseActivity {
         Intent intent = getIntent();
         if (intent != null) {
             studentRoll = intent.getStringExtra("student_roll");
+            if (TextUtils.isEmpty(studentRoll)) {
+                studentRoll = intent.getStringExtra("studentRoll");
+            }
             studentName = intent.getStringExtra("student_name");
+            if (TextUtils.isEmpty(studentName)) {
+                studentName = intent.getStringExtra("studentName");
+            }
             hallName = intent.getStringExtra("hall_name");
+            if (TextUtils.isEmpty(hallName)) {
+                hallName = intent.getStringExtra("hallName");
+            }
         }
 
         if (TextUtils.isEmpty(studentRoll)) {
@@ -113,6 +122,9 @@ public class AiChatActivity extends BaseActivity {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && !TextUtils.isEmpty(user.getUid())) {
                 studentRoll = user.getUid();
+                if (TextUtils.isEmpty(studentName) && !TextUtils.isEmpty(user.getDisplayName())) {
+                    studentName = user.getDisplayName();
+                }
             }
         }
 
@@ -170,7 +182,7 @@ public class AiChatActivity extends BaseActivity {
 
             geminiModel = GenerativeModelFutures.from(gm);
         } catch (Exception e) {
-            Log.e("AiChatActivity", "Failed to initialize Gemini GenerativeModel", e);
+            Log.e("GeminiAPI", "Failed to initialize Gemini GenerativeModel", e);
         }
     }
 
@@ -304,15 +316,17 @@ public class AiChatActivity extends BaseActivity {
                         if (binding != null) {
                             binding.layoutAiTyping.setVisibility(View.GONE);
                         }
-                        Log.e("AiChatActivity", "Gemini API call failed", t);
-                        Toast.makeText(AiChatActivity.this, "Unable to get response from AI. Please try again.", Toast.LENGTH_SHORT).show();
+                        Log.e("GeminiAPI", "AI Generation Failed", t);
+                        Toast.makeText(AiChatActivity.this, "AI Error: " + t.getLocalizedMessage(), Toast.LENGTH_LONG).show();
                     });
                 }
             }, ContextCompat.getMainExecutor(this));
         } catch (Exception e) {
-            Log.e("AiChatActivity", "Failed to dispatch generateContent request", e);
-            binding.layoutAiTyping.setVisibility(View.GONE);
-            Toast.makeText(this, "Failed to send message. Please try again.", Toast.LENGTH_SHORT).show();
+            Log.e("GeminiAPI", "Failed to dispatch generateContent request", e);
+            if (binding != null) {
+                binding.layoutAiTyping.setVisibility(View.GONE);
+            }
+            Toast.makeText(this, "AI Error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
         }
     }
 

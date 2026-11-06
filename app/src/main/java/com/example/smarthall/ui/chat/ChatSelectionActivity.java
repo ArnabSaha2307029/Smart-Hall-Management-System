@@ -33,8 +33,23 @@ public class ChatSelectionActivity extends BaseActivity {
         Intent incoming = getIntent();
         if (incoming != null) {
             studentRoll = incoming.getStringExtra("student_roll");
+            if (TextUtils.isEmpty(studentRoll)) {
+                studentRoll = incoming.getStringExtra("studentRoll");
+            }
             studentName = incoming.getStringExtra("student_name");
+            if (TextUtils.isEmpty(studentName)) {
+                studentName = incoming.getStringExtra("studentName");
+            }
             hallName = incoming.getStringExtra("hall_name");
+            if (TextUtils.isEmpty(hallName)) {
+                hallName = incoming.getStringExtra("hallName");
+            }
+            if (incoming.hasExtra(ChatActivity.EXTRA_PRIMARY_COLOR)) {
+                primaryColor = incoming.getIntExtra(ChatActivity.EXTRA_PRIMARY_COLOR, primaryColor);
+            }
+            if (incoming.hasExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR)) {
+                primaryDarkColor = incoming.getIntExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, primaryDarkColor);
+            }
         }
 
         if (TextUtils.isEmpty(studentRoll)) {
@@ -62,6 +77,16 @@ public class ChatSelectionActivity extends BaseActivity {
             }
         }
 
+        if (TextUtils.isEmpty(studentRoll)) {
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null && !TextUtils.isEmpty(user.getUid())) {
+                studentRoll = user.getUid();
+                if (TextUtils.isEmpty(studentName) && !TextUtils.isEmpty(user.getDisplayName())) {
+                    studentName = user.getDisplayName();
+                }
+            }
+        }
+
         binding.toolbarChatSelection.setBackgroundColor(primaryColor);
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
@@ -72,8 +97,11 @@ public class ChatSelectionActivity extends BaseActivity {
         binding.cardChatAdmin.setOnClickListener(v -> {
             Intent intent = new Intent(this, ChatActivity.class);
             intent.putExtra("student_roll", studentRoll);
+            intent.putExtra("studentRoll", studentRoll);
             intent.putExtra("student_name", studentName);
+            intent.putExtra("studentName", studentName);
             intent.putExtra("hall_name", hallName);
+            intent.putExtra("hallName", hallName);
             intent.putExtra("chatting_with_role", "admin");
             intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, primaryColor);
             intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, primaryDarkColor);
@@ -83,8 +111,11 @@ public class ChatSelectionActivity extends BaseActivity {
         binding.cardChatAi.setOnClickListener(v -> {
             Intent intent = new Intent(this, AiChatActivity.class);
             intent.putExtra("student_roll", studentRoll);
+            intent.putExtra("studentRoll", studentRoll);
             intent.putExtra("student_name", studentName);
+            intent.putExtra("studentName", studentName);
             intent.putExtra("hall_name", hallName);
+            intent.putExtra("hallName", hallName);
             intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, primaryColor);
             intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, primaryDarkColor);
             startActivity(intent);
