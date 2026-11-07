@@ -51,6 +51,22 @@ public class ChatMessage {
         this.message = message;
     }
 
+    public String getText() {
+        return message;
+    }
+
+    public void setText(String text) {
+        this.message = text;
+    }
+
+    public String getSenderType() {
+        return senderRole;
+    }
+
+    public void setSenderType(String senderType) {
+        this.senderRole = senderType;
+    }
+
     public long getTimestamp() {
         return timestamp;
     }

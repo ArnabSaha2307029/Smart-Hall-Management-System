@@ -54,6 +54,7 @@ import com.example.smarthall.ui.adapters.ComplaintAdapter;
 import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
+import com.example.smarthall.ui.chat.ChatSelectionActivity;
 import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
@@ -92,6 +93,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -103,6 +105,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class StudentDashboardActivity extends BaseActivity {
 
@@ -132,6 +136,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private NavigationView navigationView;
     private DatabaseReference diningManagerRef;
     private ValueEventListener diningManagerListener;
+    private final ExecutorService imageProcessingExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -398,6 +403,9 @@ public class StudentDashboardActivity extends BaseActivity {
             diningManagerRef.removeEventListener(diningManagerListener);
             diningManagerListener = null;
             diningManagerRef = null;
+        }
+        if (imageProcessingExecutor != null && !imageProcessingExecutor.isShutdown()) {
+            imageProcessingExecutor.shutdown();
         }
     }
 
@@ -736,15 +744,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private void setupHeader() {
         binding.btnMenuToggle.setOnClickListener(v -> binding.drawerLayout.openDrawer(GravityCompat.START));
         binding.btnSos.setOnClickListener(v -> showSosDialog());
-        View.OnClickListener chatClickListener = v -> {
-            String roll = getActiveStudentRoll();
-            Intent intent = new Intent(this, ChatActivity.class);
-            intent.putExtra("student_roll", roll);
-            intent.putExtra("chatting_with_role", "admin");
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
-            startActivity(intent);
-        };
+        View.OnClickListener chatClickListener = v -> launchChatSelection();
         binding.layoutTopChat.setOnClickListener(chatClickListener);
         binding.btnTopChat.setOnClickListener(chatClickListener);
         binding.btnTopNotices.setOnClickListener(v -> {
@@ -752,6 +752,20 @@ public class StudentDashboardActivity extends BaseActivity {
             startActivity(intent);
         });
         binding.btnTopLogout.setOnClickListener(v -> logout());
+    }
+
+    private void launchChatSelection() {
+        Intent intent = new Intent(this, ChatSelectionActivity.class);
+        intent.putExtra("student_roll", getActiveStudentRoll());
+        if (student != null) {
+            intent.putExtra("student_name", student.getName());
+            intent.putExtra("hall_name", student.getHallName());
+        } else {
+            intent.putExtra("hall_name", getString(R.string.hall_name));
+        }
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
+        intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
+        startActivity(intent);
     }
 
     private void setupNavigationDrawer() {
@@ -770,22 +784,7 @@ public class StudentDashboardActivity extends BaseActivity {
         });
         binding.btnNavChatWithAdmin.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
-            String roll = student != null && !TextUtils.isEmpty(student.getRollNumber())
-                    ? student.getRollNumber()
-                    : "";
-            if (TextUtils.isEmpty(roll)) {
-                FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-                if (user != null) {
-                    SharedPreferences prefs = getSharedPreferences("student_prefs_" + user.getUid(), Context.MODE_PRIVATE);
-                    roll = prefs.getString("student_roll", "");
-                }
-            }
-            Intent intent = new Intent(this, ChatActivity.class);
-            intent.putExtra("student_roll", roll);
-            intent.putExtra("chatting_with_role", "admin");
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryColor(this));
-            intent.putExtra(ChatActivity.EXTRA_PRIMARY_DARK_COLOR, com.example.smarthall.util.HallThemeManager.getActivePrimaryDarkColor(this));
-            startActivity(intent);
+            launchChatSelection();
         });
         binding.btnNavFeeRecords.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -804,7 +803,11 @@ public class StudentDashboardActivity extends BaseActivity {
                 @Override
                 public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                     int id = item.getItemId();
-                    if (id == R.id.nav_link_google) {
+                    if (id == R.id.nav_chat) {
+                        binding.drawerLayout.closeDrawer(GravityCompat.START);
+                        launchChatSelection();
+                        return true;
+                    } else if (id == R.id.nav_link_google) {
                         if (googleLinkClient != null) {
                             googleLinkClient.signOut().addOnCompleteListener(StudentDashboardActivity.this, task -> {
                                 googleLinkLauncher.launch(googleLinkClient.getSignInIntent());
@@ -1410,88 +1413,149 @@ public class StudentDashboardActivity extends BaseActivity {
         if (currentUser == null) {
             return;
         }
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            if (inputStream == null) {
-                return;
-            }
-            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-            inputStream.close();
-            if (bitmap == null) {
-                return;
-            }
 
-            String fileName = "profile_picture_" + currentUser.getUid() + ".jpg";
-            File file = new File(getFilesDir(), fileName);
-            long maxSizeBytes = 100 * 1024;
-            int quality = 95;
-            boolean saved = false;
+        if (binding != null) {
+            if (binding.pbProfileAvatar != null) {
+                binding.pbProfileAvatar.setVisibility(View.VISIBLE);
+            }
+            binding.ivProfileAvatar.setEnabled(false);
+            binding.cardProfileAvatar.setEnabled(false);
+        }
 
-            while (quality > 15) {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
-                byte[] byteArray = stream.toByteArray();
-                if (byteArray.length <= maxSizeBytes) {
+        imageProcessingExecutor.execute(() -> {
+            Bitmap bitmap = null;
+            Bitmap scaledBitmap = null;
+            try {
+                InputStream inputStream = getContentResolver().openInputStream(uri);
+                if (inputStream == null) {
+                    throw new IOException("Unable to open input stream from uri");
+                }
+                bitmap = BitmapFactory.decodeStream(inputStream);
+                inputStream.close();
+                if (bitmap == null) {
+                    throw new IOException("Failed to decode bitmap from stream");
+                }
+
+                String fileName = "profile_picture_" + currentUser.getUid() + ".jpg";
+                File file = new File(getFilesDir(), fileName);
+                long maxSizeBytes = 100 * 1024;
+                int quality = 95;
+                boolean saved = false;
+
+                while (quality > 15) {
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+                    byte[] byteArray = stream.toByteArray();
+                    if (byteArray.length <= maxSizeBytes) {
+                        FileOutputStream fos = new FileOutputStream(file);
+                        fos.write(byteArray);
+                        fos.flush();
+                        fos.close();
+                        saved = true;
+                        break;
+                    }
+                    quality -= 10;
+                }
+
+                if (!saved) {
+                    int width = bitmap.getWidth();
+                    int height = bitmap.getHeight();
+                    scaledBitmap = Bitmap.createScaledBitmap(bitmap, (int) (width * 0.8), (int) (height * 0.8), true);
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
+                    byte[] byteArray = stream.toByteArray();
                     FileOutputStream fos = new FileOutputStream(file);
                     fos.write(byteArray);
                     fos.flush();
                     fos.close();
-                    saved = true;
-                    break;
                 }
-                quality -= 10;
+
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    bitmap.recycle();
+                    bitmap = null;
+                }
+                if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+                    scaledBitmap.recycle();
+                    scaledBitmap = null;
+                }
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                FileInputStream fis = new FileInputStream(file);
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = fis.read(buf)) != -1) {
+                    baos.write(buf, 0, len);
+                }
+                fis.close();
+                byte[] fileBytes = baos.toByteArray();
+                String base64Image = Base64.encodeToString(fileBytes, Base64.NO_WRAP);
+
+                SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
+                prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
+
+                Bitmap displayBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (binding != null) {
+                        if (binding.pbProfileAvatar != null) {
+                            binding.pbProfileAvatar.setVisibility(View.GONE);
+                        }
+                        binding.ivProfileAvatar.setEnabled(true);
+                        binding.cardProfileAvatar.setEnabled(true);
+                        if (displayBitmap != null) {
+                            binding.ivProfileAvatar.setImageBitmap(displayBitmap);
+                        } else {
+                            loadProfileImage();
+                        }
+                    }
+                    uploadProfileImageToFirestore(file, base64Image);
+                });
+
+            } catch (OutOfMemoryError e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } catch (IOException e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } catch (Exception e) {
+                Log.e("ProfileImageProcessing", "Image processing failed", e);
+                handleImageProcessingError();
+            } finally {
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    bitmap.recycle();
+                }
+                if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
+                    scaledBitmap.recycle();
+                }
             }
-
-            Bitmap scaledBitmap = null;
-            if (!saved) {
-                int width = bitmap.getWidth();
-                int height = bitmap.getHeight();
-                scaledBitmap = Bitmap.createScaledBitmap(bitmap, (int) (width * 0.8), (int) (height * 0.8), true);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
-                byte[] byteArray = stream.toByteArray();
-                FileOutputStream fos = new FileOutputStream(file);
-                fos.write(byteArray);
-                fos.flush();
-                fos.close();
-            }
-
-            if (bitmap != null && !bitmap.isRecycled()) {
-                bitmap.recycle();
-            }
-            if (scaledBitmap != null && !scaledBitmap.isRecycled()) {
-                scaledBitmap.recycle();
-            }
-
-            uploadProfileImageToFirestore(file);
-
-            SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
-            prefs.edit().putString("profile_image_path", file.getAbsolutePath()).apply();
-
-            loadProfileImage();
-        } catch (Exception e) {
-            Log.e("StudentDashboard", "Failed to save profile image", e);
-            Toast.makeText(this, "Failed to save profile picture", Toast.LENGTH_SHORT).show();
-        }
+        });
     }
 
-    private void uploadProfileImageToFirestore(File file) {
+    private void handleImageProcessingError() {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            if (binding != null) {
+                if (binding.pbProfileAvatar != null) {
+                    binding.pbProfileAvatar.setVisibility(View.GONE);
+                }
+                binding.ivProfileAvatar.setEnabled(true);
+                binding.cardProfileAvatar.setEnabled(true);
+            }
+            Toast.makeText(this, "Failed to process image. Please try another photo.", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void uploadProfileImageToFirestore(File file, String base64Image) {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser == null || file == null || !file.exists()) {
+        if (currentUser == null || file == null || TextUtils.isEmpty(base64Image)) {
             return;
         }
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            FileInputStream fis = new FileInputStream(file);
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = fis.read(buf)) != -1) {
-                baos.write(buf, 0, len);
-            }
-            fis.close();
-            byte[] fileBytes = baos.toByteArray();
-
-            String base64Image = Base64.encodeToString(fileBytes, Base64.NO_WRAP);
             FirebaseFirestore db = FirebaseFirestore.getInstance();
             db.collection("students")
                     .document(currentUser.getUid())
@@ -1505,7 +1569,7 @@ public class StudentDashboardActivity extends BaseActivity {
                         .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to sync roll profile image", e));
             }
         } catch (Exception e) {
-            Log.e("StudentDashboard", "Failed to read profile image for upload", e);
+            Log.e("StudentDashboard", "Failed to write profile image to Firestore", e);
         }
     }
 
