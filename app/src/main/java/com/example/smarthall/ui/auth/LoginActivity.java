@@ -3,12 +3,14 @@ package com.example.smarthall.ui.auth;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -16,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.PopupMenu;
 
 import com.example.smarthall.R;
 import com.example.smarthall.databinding.ActivityLoginBinding;
@@ -24,6 +27,7 @@ import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
+import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
 import com.example.smarthall.util.ThemeHelper;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -46,6 +50,9 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class LoginActivity extends BaseActivity {
 
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
@@ -56,6 +63,13 @@ public class LoginActivity extends BaseActivity {
     private FirebaseFirestore db;
     private GoogleSignInClient mGoogleSignInClient;
     private ActivityResultLauncher<Intent> googleSignInLauncher;
+    private final int[] slideImages = {
+        R.drawable.slide_1,
+        R.drawable.slide_2,
+        R.drawable.slide_3
+    };
+    private int currentSlideIndex = 0;
+    private Timer sliderTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,8 +112,8 @@ public class LoginActivity extends BaseActivity {
                 }
         );
 
+        setupImageSwitcher();
         setupClickListeners();
-        setupThemeToggle();
 
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
@@ -109,7 +123,68 @@ public class LoginActivity extends BaseActivity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startImageSlider();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopImageSlider();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopImageSlider();
+    }
+
+    private void setupImageSwitcher() {
+        binding.imageSwitcher.setFactory(() -> {
+            ImageView imageView = new ImageView(LoginActivity.this);
+            imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            imageView.setLayoutParams(new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            return imageView;
+        });
+
+        binding.imageSwitcher.setInAnimation(this, android.R.anim.slide_in_left);
+        binding.imageSwitcher.setOutAnimation(this, android.R.anim.slide_out_right);
+
+        if (slideImages.length > 0) {
+            binding.imageSwitcher.setImageResource(slideImages[0]);
+        }
+    }
+
+    private void startImageSlider() {
+        stopImageSlider();
+        sliderTimer = new Timer();
+        sliderTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                runOnUiThread(() -> {
+                    if (slideImages.length > 0 && binding != null && binding.imageSwitcher != null) {
+                        currentSlideIndex = (currentSlideIndex + 1) % slideImages.length;
+                        binding.imageSwitcher.setImageResource(slideImages[currentSlideIndex]);
+                    }
+                });
+            }
+        }, 2000, 2000);
+    }
+
+    private void stopImageSlider() {
+        if (sliderTimer != null) {
+            sliderTimer.cancel();
+            sliderTimer = null;
+        }
+    }
+
     private void setupClickListeners() {
+        binding.ivThemeToggle.setOnClickListener(this::showThemePopupMenu);
+
         binding.btnLogin.setOnClickListener(v -> attemptLogin());
 
         binding.btnGoogleSignIn.setOnClickListener(v -> {
@@ -123,18 +198,35 @@ public class LoginActivity extends BaseActivity {
         binding.tvForgotPassword.setOnClickListener(v -> showForgotPasswordDialog());
     }
 
-    private void setupThemeToggle() {
-        binding.btnThemeToggle.setOnClickListener(v -> {
-            int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
-            boolean isNight = currentNightMode == Configuration.UI_MODE_NIGHT_YES;
-            boolean newNight = !isNight;
-            int targetMode = newNight ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO;
-            AppCompatDelegate.setDefaultNightMode(targetMode);
-            getSharedPreferences("smart_hall_prefs", Context.MODE_PRIVATE)
-                    .edit()
-                    .putBoolean("night_mode", newNight)
-                    .apply();
+    private void showThemePopupMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenuInflater().inflate(R.menu.menu_theme_selection, popup.getMenu());
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.action_theme_system) {
+                applyNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                return true;
+            } else if (itemId == R.id.action_theme_light) {
+                applyNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+                return true;
+            } else if (itemId == R.id.action_theme_dark) {
+                applyNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+                return true;
+            } else if (itemId == R.id.action_theme_colors) {
+                ThemeSelectorBottomSheet.newInstance().show(getSupportFragmentManager(), ThemeSelectorBottomSheet.TAG);
+                return true;
+            }
+            return false;
         });
+        popup.show();
+    }
+
+    private void applyNightMode(int mode) {
+        AppCompatDelegate.setDefaultNightMode(mode);
+        getSharedPreferences("smart_hall_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putInt("night_mode_preference", mode)
+                .apply();
     }
 
     private void attemptLogin() {
