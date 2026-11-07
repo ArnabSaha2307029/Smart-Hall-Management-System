@@ -88,8 +88,9 @@ public class RoomManagementActivity extends BaseActivity {
                     binding.pbLoadingRooms.setVisibility(View.GONE);
 
                     if (error != null) {
-                        Log.e("RoomManagement", "Failed to load rooms", error);
-                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                        String msg = error.getMessage() != null ? error.getMessage() : "Unknown error";
+                        Log.e("StudentDashboardError", "Operation failed: Failed to load rooms: " + msg, error);
+                        Toast.makeText(this, "Failed to load rooms: " + msg, Toast.LENGTH_SHORT).show();
                         return;
                     }
 
@@ -181,8 +182,9 @@ public class RoomManagementActivity extends BaseActivity {
 
                 @Override
                 public void onFailure(Exception e) {
-                    Log.e("RoomManagement", "Failed to add room", e);
-                    Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                    String msg = e != null ? e.getMessage() : "Unknown error";
+                    Log.e("StudentDashboardError", "Operation failed: Failed to add room: " + msg, e);
+                    Toast.makeText(RoomManagementActivity.this, "Failed to add room: " + msg, Toast.LENGTH_SHORT).show();
                 }
             });
         });
@@ -287,8 +289,9 @@ public class RoomManagementActivity extends BaseActivity {
 
                         @Override
                         public void onFailure(Exception e) {
-                            Log.e("RoomManagement", "Vacate failed", e);
-                            Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                            String msg = e != null ? e.getMessage() : "Unknown error";
+                            Log.e("StudentDashboardError", "Operation failed: Vacate failed: " + msg, e);
+                            Toast.makeText(RoomManagementActivity.this, "Failed to vacate seat: " + msg, Toast.LENGTH_SHORT).show();
                         }
                     });
                 })
@@ -524,8 +527,9 @@ public class RoomManagementActivity extends BaseActivity {
             selectorBinding.pbLoadingStudents.setVisibility(View.GONE);
             selectorBinding.tvEmptyStudents.setVisibility(View.VISIBLE);
             selectorBinding.rvStudentList.setVisibility(View.GONE);
-            Log.e("RoomManagement", "Failed to load students", e);
-            selectorBinding.tvEmptyStudents.setText("Unable to load students. Please check your connection.");
+            String msg = e != null ? e.getMessage() : "Unknown error";
+            Log.e("StudentDashboardError", "Operation failed: Failed to load students: " + msg, e);
+            selectorBinding.tvEmptyStudents.setText("Unable to load students: " + msg);
         });
     }
 
@@ -547,8 +551,9 @@ public class RoomManagementActivity extends BaseActivity {
 
                                 @Override
                                 public void onFailure(Exception e) {
-                                    Log.e("RoomManagement", "Allocation failed", e);
-                                    Toast.makeText(RoomManagementActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                                    String msg = e != null ? e.getMessage() : "Unknown error";
+                                    Log.e("StudentDashboardError", "Operation failed: Allocation failed: " + msg, e);
+                                    Toast.makeText(RoomManagementActivity.this, "Failed to allocate seat: " + msg, Toast.LENGTH_SHORT).show();
                                 }
                             });
                 })

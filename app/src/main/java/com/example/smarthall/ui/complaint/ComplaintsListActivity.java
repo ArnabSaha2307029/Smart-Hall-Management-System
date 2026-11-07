@@ -205,8 +205,9 @@ public class ComplaintsListActivity extends BaseActivity {
                     Toast.makeText(ComplaintsListActivity.this, "Complaint submitted successfully", Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
                 } else {
-                    Log.e("ComplaintsList", "Failed to submit complaint", task.getException());
-                    Toast.makeText(ComplaintsListActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                    String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                    Log.e("StudentDashboardError", "Operation failed: Failed to submit complaint: " + msg, task.getException());
+                    Toast.makeText(ComplaintsListActivity.this, "Failed to submit complaint: " + msg, Toast.LENGTH_SHORT).show();
                 }
             });
         });

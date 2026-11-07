@@ -214,8 +214,9 @@ public class UnpaidBillActivity extends BaseActivity {
             public void onError(Exception e) {
                 binding.pbLoadingBill.setVisibility(View.GONE);
                 binding.layoutBillContent.setVisibility(View.VISIBLE);
-                Log.e("UnpaidBill", "Failed to calculate bill", e);
-                Toast.makeText(UnpaidBillActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                String msg = e != null ? e.getMessage() : "Unknown error";
+                Log.e("StudentDashboardError", "Operation failed: Failed to calculate bill: " + msg, e);
+                Toast.makeText(UnpaidBillActivity.this, "Failed to calculate bill: " + msg, Toast.LENGTH_SHORT).show();
             }
         });
     }

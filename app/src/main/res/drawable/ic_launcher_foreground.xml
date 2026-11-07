@@ -1,10 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,24L24,38v6h60v-6L54,24zM30,48v26h8V48H30zM44,48v26h8V48H44zM58,48v26h8V48H58zM72,48v26h8V48H72zM20,78v6h68v-6H20z" />
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/app_logo" />

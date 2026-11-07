@@ -19,6 +19,8 @@ import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
@@ -59,6 +61,7 @@ import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
 import com.example.smarthall.ui.theme.ThemeSelectorBottomSheet;
+import com.example.smarthall.util.BillingEngine;
 import com.example.smarthall.util.EmergencySosManager;
 import com.example.smarthall.util.ThemeHelper;
 import com.facebook.login.LoginManager;
@@ -70,6 +73,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.AuthCredential;
@@ -98,6 +102,7 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -115,6 +120,7 @@ public class StudentDashboardActivity extends BaseActivity {
     private Student student;
     private FeeRecordAdapter feeRecordAdapter;
     private ListenerRegistration feeListenerRegistration;
+    private ListenerRegistration paymentListenerRegistration;
     private ListenerRegistration roomListener;
     private ComplaintAdapter complaintAdapter;
     private ActivityResultLauncher<String> requestPermissionLauncher;
@@ -134,8 +140,8 @@ public class StudentDashboardActivity extends BaseActivity {
     private ActivityResultLauncher<Intent> googleLinkLauncher;
     private String linkedGoogleEmail;
     private NavigationView navigationView;
-    private DatabaseReference diningManagerRef;
-    private ValueEventListener diningManagerListener;
+    private DatabaseReference studentRtdbRef;
+    private ValueEventListener studentRtdbListener;
     private final ExecutorService imageProcessingExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -334,7 +340,28 @@ public class StudentDashboardActivity extends BaseActivity {
         setupDiningManagerListener();
         Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
         ContextCompat.startForegroundService(this, serviceIntent);
+        checkAndRequestBatteryOptimizationExemption();
         updateDrawerMenuState();
+    }
+
+    private void checkAndRequestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                    SharedPreferences prefs = getSharedPreferences("smart_hall_prefs", MODE_PRIVATE);
+                    boolean alreadyPrompted = prefs.getBoolean("battery_optimization_prompted", false);
+                    if (!alreadyPrompted) {
+                        prefs.edit().putBoolean("battery_optimization_prompted", true).apply();
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("StudentDashboard", "Failed to request battery optimization exemption", e);
+            }
+        }
     }
 
     @Override
@@ -390,6 +417,10 @@ public class StudentDashboardActivity extends BaseActivity {
             feeListenerRegistration.remove();
             feeListenerRegistration = null;
         }
+        if (paymentListenerRegistration != null) {
+            paymentListenerRegistration.remove();
+            paymentListenerRegistration = null;
+        }
         if (roomListener != null) {
             roomListener.remove();
             roomListener = null;
@@ -399,10 +430,10 @@ public class StudentDashboardActivity extends BaseActivity {
             chatBadgeListener = null;
             chatBadgeRef = null;
         }
-        if (diningManagerRef != null && diningManagerListener != null) {
-            diningManagerRef.removeEventListener(diningManagerListener);
-            diningManagerListener = null;
-            diningManagerRef = null;
+        if (studentRtdbRef != null && studentRtdbListener != null) {
+            studentRtdbRef.removeEventListener(studentRtdbListener);
+            studentRtdbListener = null;
+            studentRtdbRef = null;
         }
         if (imageProcessingExecutor != null && !imageProcessingExecutor.isShutdown()) {
             imageProcessingExecutor.shutdown();
@@ -439,27 +470,30 @@ public class StudentDashboardActivity extends BaseActivity {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         String uid = currentUser != null ? currentUser.getUid() : "";
 
-        if (diningManagerRef != null && diningManagerListener != null) {
-            diningManagerRef.removeEventListener(diningManagerListener);
-            diningManagerListener = null;
-            diningManagerRef = null;
+        if (studentRtdbRef != null && studentRtdbListener != null) {
+            studentRtdbRef.removeEventListener(studentRtdbListener);
+            studentRtdbListener = null;
+            studentRtdbRef = null;
         }
 
-        FirebaseDatabase rtdb = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
-        String targetKey = !TextUtils.isEmpty(roll) ? roll : uid;
-        if (TextUtils.isEmpty(targetKey)) {
+        String targetKey = !TextUtils.isEmpty(roll) ? roll.trim() : uid.trim();
+        targetKey = targetKey.replaceAll("[.#$\\[\\]]", "");
+        if (TextUtils.isEmpty(targetKey) || "null".equalsIgnoreCase(targetKey)) {
+            Log.w("StudentDashboardError", "Operation failed: Invalid targetKey for student RTDB listener: " + targetKey);
             return;
         }
 
-        diningManagerRef = rtdb.getReference("students").child(targetKey).child("isDiningManager");
-        diningManagerListener = new ValueEventListener() {
+        FirebaseDatabase rtdb = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+        studentRtdbRef = rtdb.getReference("students").child(targetKey);
+        studentRtdbListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean isManager = false;
                 if (snapshot.exists()) {
-                    Boolean val = snapshot.getValue(Boolean.class);
+                    Boolean val = snapshot.child("isDiningManager").getValue(Boolean.class);
                     isManager = Boolean.TRUE.equals(val);
                 }
+
                 if (student != null) {
                     student.setDiningManager(isManager);
                 }
@@ -476,10 +510,10 @@ public class StudentDashboardActivity extends BaseActivity {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e("StudentDashboard", "Failed to listen for dining manager status", error.toException());
+                Log.e("StudentDashboardError", "Operation failed: RTDB student profile listener cancelled - Code: " + error.getCode() + ", Message: " + error.getMessage(), error.toException());
             }
         };
-        diningManagerRef.addValueEventListener(diningManagerListener);
+        studentRtdbRef.addValueEventListener(studentRtdbListener);
     }
 
     private void setupChatBadgeListener() {
@@ -808,12 +842,16 @@ public class StudentDashboardActivity extends BaseActivity {
                         launchChatSelection();
                         return true;
                     } else if (id == R.id.nav_link_google) {
-                        if (googleLinkClient != null) {
-                            googleLinkClient.signOut().addOnCompleteListener(StudentDashboardActivity.this, task -> {
-                                googleLinkLauncher.launch(googleLinkClient.getSignInIntent());
-                            });
-                        }
                         binding.drawerLayout.closeDrawer(GravityCompat.START);
+                        if (isGoogleAccountLinked()) {
+                            Toast.makeText(StudentDashboardActivity.this, "Google account is already linked.", Toast.LENGTH_SHORT).show();
+                        } else {
+                            if (googleLinkClient != null) {
+                                googleLinkClient.signOut().addOnCompleteListener(StudentDashboardActivity.this, task -> {
+                                    googleLinkLauncher.launch(googleLinkClient.getSignInIntent());
+                                });
+                            }
+                        }
                         return true;
                     } else if (id == R.id.nav_logout) {
                         binding.drawerLayout.closeDrawer(GravityCompat.START);
@@ -1008,6 +1046,8 @@ public class StudentDashboardActivity extends BaseActivity {
         linkedGoogleEmail = doc.getString("linkedGoogleEmail");
         if (!TextUtils.isEmpty(linkedGoogleEmail)) {
             editor.putString("linked_google_email", linkedGoogleEmail);
+        } else {
+            editor.remove("linked_google_email");
         }
         editor.apply();
         updateDrawerMenuState();
@@ -1019,6 +1059,8 @@ public class StudentDashboardActivity extends BaseActivity {
         setupSeatView();
         if (!TextUtils.isEmpty(roll)) {
             loadFeeRecordsFromFirestore();
+            evaluatePreviousMonthFeeStatus();
+            setupPaymentsListener();
         }
     }
 
@@ -1122,10 +1164,14 @@ public class StudentDashboardActivity extends BaseActivity {
         binding.rvMyFees.setLayoutManager(new LinearLayoutManager(this));
         binding.rvMyFees.setAdapter(feeRecordAdapter);
         loadFeeRecordsFromFirestore();
+        evaluatePreviousMonthFeeStatus();
+        setupPaymentsListener();
     }
 
     private void refreshFees() {
         loadFeeRecordsFromFirestore();
+        evaluatePreviousMonthFeeStatus();
+        setupPaymentsListener();
     }
 
     private void loadFeeRecordsFromFirestore() {
@@ -1157,49 +1203,92 @@ public class StudentDashboardActivity extends BaseActivity {
                     }
 
                     if (snapshots == null || snapshots.isEmpty()) {
-                        createFallbackFeeRecord(roll);
+                        feeRecordAdapter.updateData(new ArrayList<>());
+                        updateFeeEmptyState(new ArrayList<>());
                         return;
                     }
 
                     List<FeeRecord> feeList = new ArrayList<>();
-                    boolean allPaid = true;
                     for (DocumentSnapshot doc : snapshots.getDocuments()) {
                         FeeRecord record = parseFeeRecord(doc);
                         feeList.add(record);
-                        if (!record.isPaid()) {
-                            allPaid = false;
-                        }
                     }
 
                     feeRecordAdapter.updateData(feeList);
                     updateFeeEmptyState(feeList);
-
-                    if (!feeList.isEmpty()) {
-                        student.setFeeStatus(allPaid ? FeeRecord.STATUS_PAID : FeeRecord.STATUS_UNPAID);
-                        setupProfileCard();
-                    }
                 });
     }
 
-    private void createFallbackFeeRecord(String roll) {
-        String mockDocId = "FEE_" + roll + "_202611";
-        Map<String, Object> mockFee = new HashMap<>();
-        mockFee.put("id", mockDocId);
-        mockFee.put("roll", roll);
-        mockFee.put("month", "November 2026");
-        mockFee.put("diningFee", 2000.0);
-        mockFee.put("hallFee", 1000.0);
-        mockFee.put("totalAmount", 3000.0);
-        mockFee.put("amount", 3000.0);
-        mockFee.put("dueDate", "15/11/2026");
-        mockFee.put("status", "UNPAID");
-        mockFee.put("paidAt", 0L);
-        mockFee.put("trxId", "");
+    private String getPreviousMonthEndDateString() {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        cal.add(Calendar.DATE, -1);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        return sdf.format(cal.getTime());
+    }
 
-        FirebaseFirestore.getInstance().collection("fee_records")
-                .document(mockDocId)
-                .set(mockFee)
-                .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to create fallback fee record", e));
+    private void evaluatePreviousMonthFeeStatus() {
+        if (student == null || binding == null) {
+            return;
+        }
+        String roll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(roll)) {
+            return;
+        }
+
+        String previousMonthEndDate = getPreviousMonthEndDateString();
+        int statusTextColor = getThemeColor(androidx.appcompat.R.attr.colorPrimary, 0xFFC62828);
+
+        if (previousMonthEndDate.compareTo(BillingEngine.BILLING_START_DATE) < 0) {
+            student.setFeeStatus(FeeRecord.STATUS_PAID);
+            binding.tvFeeStatusCard.setText("Fee Status: PAID");
+            binding.tvFeeStatusCard.setTextColor(statusTextColor);
+            return;
+        }
+
+        BillingEngine.calculateBillUpToDate(roll, previousMonthEndDate, new BillingEngine.OnBillCalculatedListener() {
+            @Override
+            public void onBillCalculated(BillingEngine.BillResult result) {
+                if (result == null || binding == null) {
+                    return;
+                }
+                double unpaid = result.getNetUnpaidAmount();
+                if (unpaid <= 0.0) {
+                    student.setFeeStatus(FeeRecord.STATUS_PAID);
+                    binding.tvFeeStatusCard.setText("Fee Status: PAID");
+                } else {
+                    student.setFeeStatus(FeeRecord.STATUS_UNPAID);
+                    binding.tvFeeStatusCard.setText("Fee Status: UNPAID");
+                }
+                binding.tvFeeStatusCard.setTextColor(statusTextColor);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                String errorMsg = e != null ? e.getMessage() : "Unknown error";
+                Log.e("BillingEngineError", "Failed to evaluate previous month fee status: " + errorMsg, e);
+            }
+        });
+    }
+
+    private void setupPaymentsListener() {
+        String roll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(roll)) {
+            return;
+        }
+        if (paymentListenerRegistration != null) {
+            paymentListenerRegistration.remove();
+        }
+        paymentListenerRegistration = FirebaseFirestore.getInstance()
+                .collection("payments")
+                .whereEqualTo("roll", roll)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e("BillingEngineError", "Failed to listen for payments", error);
+                        return;
+                    }
+                    evaluatePreviousMonthFeeStatus();
+                });
     }
 
     private FeeRecord parseFeeRecord(DocumentSnapshot doc) {
@@ -1241,8 +1330,7 @@ public class StudentDashboardActivity extends BaseActivity {
         PaymentGatewayBottomSheet bottomSheet = PaymentGatewayBottomSheet.newInstance(feeRecord, roll);
         bottomSheet.setPaymentCallback(payment -> {
             feeRecordAdapter.markFeeAsPaid(payment.getFeeRecordId(), payment.getTrxId());
-            student.setFeeStatus(FeeRecord.STATUS_PAID);
-            setupProfileCard();
+            evaluatePreviousMonthFeeStatus();
             PaymentReceiptDialog receiptDialog = PaymentReceiptDialog.newInstance(payment);
             receiptDialog.show(getSupportFragmentManager(), "PAYMENT_RECEIPT_DIALOG");
         });
@@ -1741,6 +1829,13 @@ public class StudentDashboardActivity extends BaseActivity {
                         .apply();
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("linkedGoogleEmail", linkedGoogleEmail);
+                String studentRoll = getActiveStudentRoll();
+                if (!TextUtils.isEmpty(studentRoll)) {
+                    FirebaseDatabase rtdb = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+                    Map<String, Object> rtdbUpdates = new HashMap<>();
+                    rtdbUpdates.put("googleEmail", linkedGoogleEmail);
+                    rtdb.getReference("students").child(studentRoll).updateChildren(rtdbUpdates);
+                }
                 FirebaseFirestore.getInstance().collection("students").document(user.getUid())
                         .set(updates, SetOptions.merge())
                         .addOnCompleteListener(t -> {
@@ -1748,14 +1843,31 @@ public class StudentDashboardActivity extends BaseActivity {
                             updateDrawerMenuState();
                         });
             } else {
-                Log.e("AuthError", "Google link failed", task.getException());
+                String errorMsg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                Log.e("StudentDashboardError", "Operation failed: Google account link failed: " + errorMsg, task.getException());
                 if (task.getException() instanceof FirebaseAuthUserCollisionException) {
                     Toast.makeText(StudentDashboardActivity.this, "This account is already linked to another user.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(StudentDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(StudentDashboardActivity.this, "Failed to link Google account: " + errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
         });
+    }
+
+    private boolean isGoogleAccountLinked() {
+        if (!TextUtils.isEmpty(linkedGoogleEmail)) {
+            return true;
+        }
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            for (UserInfo userInfo : currentUser.getProviderData()) {
+                if (GoogleAuthProvider.PROVIDER_ID.equals(userInfo.getProviderId())
+                        || "google.com".equals(userInfo.getProviderId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void updateDrawerMenuState() {
@@ -1767,25 +1879,15 @@ public class StudentDashboardActivity extends BaseActivity {
             return;
         }
         MenuItem googleItem = navMenu.findItem(R.id.nav_link_google);
-
-        boolean isGoogleLinked = !TextUtils.isEmpty(linkedGoogleEmail);
-
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null) {
-            for (UserInfo userInfo : currentUser.getProviderData()) {
-                if ("google.com".equals(userInfo.getProviderId())) {
-                    isGoogleLinked = true;
-                    break;
-                }
-            }
-        }
-
         if (googleItem != null) {
+            boolean isGoogleLinked = isGoogleAccountLinked();
             if (isGoogleLinked) {
-                googleItem.setTitle(getString(R.string.btn_google_linked));
-                googleItem.setEnabled(false);
+                googleItem.setTitle(R.string.btn_google_linked);
+                googleItem.setIcon(R.drawable.ic_baseline_link_24);
+                googleItem.setEnabled(true);
             } else {
-                googleItem.setTitle(getString(R.string.btn_link_google));
+                googleItem.setTitle(R.string.btn_link_google);
+                googleItem.setIcon(R.drawable.ic_baseline_link_24);
                 googleItem.setEnabled(true);
             }
         }
