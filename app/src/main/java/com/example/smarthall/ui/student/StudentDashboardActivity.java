@@ -58,6 +58,7 @@ import com.example.smarthall.ui.adapters.FeeRecordAdapter;
 import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
 import com.example.smarthall.ui.chat.ChatSelectionActivity;
+import com.example.smarthall.ui.complaint.ComplaintDetailActivity;
 import com.example.smarthall.ui.complaint.ComplaintsListActivity;
 import com.example.smarthall.ui.base.BaseActivity;
 import com.example.smarthall.ui.customview.RoomSeatView;
@@ -124,6 +125,9 @@ public class StudentDashboardActivity extends BaseActivity {
     private ListenerRegistration paymentListenerRegistration;
     private ListenerRegistration roomListener;
     private ComplaintAdapter complaintAdapter;
+    private DatabaseReference rtdbComplaintsRef;
+    private ValueEventListener rtdbComplaintsListener;
+    private final List<Complaint> studentComplaintsList = new ArrayList<>();
     private ActivityResultLauncher<String> requestPermissionLauncher;
     private ActivityResultLauncher<String> galleryLauncher;
     private ActivityResultLauncher<Intent> uCropLauncher;
@@ -446,6 +450,11 @@ public class StudentDashboardActivity extends BaseActivity {
             studentRtdbRef.removeEventListener(studentRtdbListener);
             studentRtdbListener = null;
             studentRtdbRef = null;
+        }
+        if (rtdbComplaintsRef != null && rtdbComplaintsListener != null) {
+            rtdbComplaintsRef.removeEventListener(rtdbComplaintsListener);
+            rtdbComplaintsListener = null;
+            rtdbComplaintsRef = null;
         }
         if (imageProcessingExecutor != null && !imageProcessingExecutor.isShutdown()) {
             imageProcessingExecutor.shutdown();
@@ -891,10 +900,6 @@ public class StudentDashboardActivity extends BaseActivity {
             Intent intent = new Intent(this, ComplaintsListActivity.class);
             startActivity(intent);
         });
-        binding.btnNavChatWithAdmin.setOnClickListener(v -> {
-            binding.drawerLayout.closeDrawer(GravityCompat.START);
-            launchChatSelection();
-        });
         binding.btnNavFeeRecords.setOnClickListener(v -> {
             binding.drawerLayout.closeDrawer(GravityCompat.START);
             binding.scrollViewContent.smoothScrollTo(0, binding.cardFeeRecords.getTop());
@@ -1175,6 +1180,7 @@ public class StudentDashboardActivity extends BaseActivity {
             loadFeeRecordsFromFirestore();
             evaluatePreviousMonthFeeStatus();
             setupPaymentsListener();
+            loadStudentComplaints();
         }
     }
 
@@ -1457,22 +1463,100 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void setupComplaints() {
-        List<Complaint> myComplaints = repository.getComplaintsByStudent(student.getId());
-        complaintAdapter = new ComplaintAdapter(myComplaints, null, false);
+        complaintAdapter = new ComplaintAdapter(studentComplaintsList, complaint -> {
+            Intent intent = new Intent(StudentDashboardActivity.this, ComplaintDetailActivity.class);
+            intent.putExtra("complaint_id", complaint.getComplaintId());
+            intent.putExtra("title", complaint.getTitle());
+            intent.putExtra("description", complaint.getDescription());
+            intent.putExtra("student_roll", complaint.getStudentRoll());
+            intent.putExtra("student_phone", complaint.getStudentPhone());
+            intent.putExtra("status", complaint.getStatus());
+            intent.putExtra("timestamp", complaint.getTimestamp());
+            startActivity(intent);
+        });
         binding.rvMyComplaints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvMyComplaints.setAdapter(complaintAdapter);
-        updateComplaintEmptyState(myComplaints);
+        loadStudentComplaints();
     }
 
     private void refreshComplaints() {
-        List<Complaint> complaints = repository.getComplaintsByStudent(student.getId());
-        complaintAdapter.updateData(complaints);
-        updateComplaintEmptyState(complaints);
+        loadStudentComplaints();
+    }
+
+    private void loadStudentComplaints() {
+        final String activeRoll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(activeRoll)) {
+            studentComplaintsList.clear();
+            if (complaintAdapter != null) {
+                complaintAdapter.updateData(studentComplaintsList);
+            }
+            updateComplaintEmptyState(studentComplaintsList);
+            return;
+        }
+
+        if (rtdbComplaintsRef != null && rtdbComplaintsListener != null) {
+            rtdbComplaintsRef.removeEventListener(rtdbComplaintsListener);
+        }
+
+        rtdbComplaintsRef = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com")
+                .getReference("complaints");
+
+        rtdbComplaintsListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                studentComplaintsList.clear();
+                String targetRoll = activeRoll.trim();
+
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    String studentRoll = child.child("studentRoll").getValue(String.class);
+                    if (studentRoll == null) {
+                        studentRoll = child.child("roll").getValue(String.class);
+                    }
+                    if (studentRoll == null) {
+                        studentRoll = child.child("submitterRoll").getValue(String.class);
+                    }
+                    if (studentRoll == null) {
+                        studentRoll = child.child("studentId").getValue(String.class);
+                    }
+
+                    if (studentRoll != null && studentRoll.trim().equalsIgnoreCase(targetRoll)) {
+                        String id = child.child("complaintId").getValue(String.class);
+                        if (id == null) {
+                            id = child.getKey();
+                        }
+                        String title = child.child("title").getValue(String.class);
+                        String description = child.child("description").getValue(String.class);
+                        String studentPhone = child.child("studentPhone").getValue(String.class);
+                        String status = child.child("status").getValue(String.class);
+                        Long timestampVal = child.child("timestamp").getValue(Long.class);
+                        long timestamp = timestampVal != null ? timestampVal : 0L;
+
+                        Complaint complaint = new Complaint(id, title, description, studentRoll.trim(), studentPhone, status, timestamp);
+                        studentComplaintsList.add(complaint);
+                    }
+                }
+
+                Collections.sort(studentComplaintsList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+
+                if (complaintAdapter != null) {
+                    complaintAdapter.updateData(studentComplaintsList);
+                }
+                updateComplaintEmptyState(studentComplaintsList);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("StudentDashboard", "Complaints query cancelled: " + error.getMessage());
+            }
+        };
+
+        rtdbComplaintsRef.addValueEventListener(rtdbComplaintsListener);
     }
 
     private void updateComplaintEmptyState(List<Complaint> complaints) {
-        binding.tvEmptyComplaints.setVisibility(complaints.isEmpty() ? View.VISIBLE : View.GONE);
-        binding.rvMyComplaints.setVisibility(complaints.isEmpty() ? View.GONE : View.VISIBLE);
+        boolean isEmpty = (complaints == null || complaints.isEmpty());
+        binding.tvEmptyComplaints.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        binding.rvMyComplaints.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
     }
 
     private void setupSubmitComplaintButton() {
@@ -1483,54 +1567,6 @@ public class StudentDashboardActivity extends BaseActivity {
         binding.cardComplaints.setOnClickListener(v -> {
             Intent intent = new Intent(this, ComplaintsListActivity.class);
             startActivity(intent);
-        });
-    }
-
-    private void showSubmitComplaintDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Submit Complaint");
-
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_submit_complaint, null);
-        builder.setView(dialogView);
-
-        EditText etTitle = dialogView.findViewById(R.id.etComplaintTitle);
-        EditText etDesc = dialogView.findViewById(R.id.etComplaintDesc);
-
-        builder.setPositiveButton("Submit", null);
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            String title = etTitle.getText().toString().trim();
-            String desc = etDesc.getText().toString().trim();
-
-            if (TextUtils.isEmpty(title)) {
-                etTitle.setError("Complaint title is required");
-                etTitle.requestFocus();
-                return;
-            }
-            if (TextUtils.isEmpty(desc)) {
-                etDesc.setError("Please describe your complaint");
-                etDesc.requestFocus();
-                return;
-            }
-
-            String date = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(new Date());
-            String roomNo = student.isAssigned() ? student.getAllocatedRoom() : "N/A";
-            Complaint complaint = new Complaint(
-                    repository.generateComplaintId(),
-                    student.getId(),
-                    student.getName(),
-                    roomNo,
-                    title, desc, date,
-                    Complaint.STATUS_PENDING
-            );
-            repository.addComplaint(complaint);
-            refreshComplaints();
-            Toast.makeText(this, "Complaint submitted successfully", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
         });
     }
 
