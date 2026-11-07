@@ -312,14 +312,8 @@ public class PaymentGatewayBottomSheet extends BottomSheetDialogFragment {
         paymentData.put("status", "SUCCESS");
         batch.set(paymentRef, paymentData);
 
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         Map<String, Object> studentFeeUpdate = new HashMap<>();
         studentFeeUpdate.put("feeStatus", "PAID");
-
-        if (currentUser != null) {
-            DocumentReference studentUidRef = db.collection("students").document(currentUser.getUid());
-            batch.set(studentUidRef, studentFeeUpdate, SetOptions.merge());
-        }
 
         if (!TextUtils.isEmpty(roll)) {
             DocumentReference studentRollRef = db.collection("students").document(roll);

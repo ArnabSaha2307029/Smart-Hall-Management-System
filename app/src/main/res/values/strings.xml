@@ -80,4 +80,5 @@
     <string name="err_invalid_email_reset">Please enter a valid email address.</string>
     <string name="err_reset_failed">Unable to send reset email. Please verify your email and try again.</string>
     <string name="hint_email_address">Email Address</string>
+    <string name="nav_broadcast_notice">Broadcast Notice</string>
 </resources>

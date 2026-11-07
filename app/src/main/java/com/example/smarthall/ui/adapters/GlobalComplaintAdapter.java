@@ -1,5 +1,6 @@
 package com.example.smarthall.ui.adapters;
 
+import android.graphics.Color;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -53,18 +54,17 @@ public class GlobalComplaintAdapter extends RecyclerView.Adapter<GlobalComplaint
             holder.tvDate.setVisibility(View.GONE);
         }
 
-        if (Complaint.STATUS_RESOLVED.equalsIgnoreCase(complaint.getStatus())) {
+        boolean isResolved = Complaint.STATUS_RESOLVED.equalsIgnoreCase(complaint.getStatus())
+                || "closed".equalsIgnoreCase(complaint.getStatus());
+        holder.tvStatus.setVisibility(View.VISIBLE);
+        if (isResolved) {
             holder.tvStatus.setText("RESOLVED");
             holder.tvStatus.setBackgroundResource(R.drawable.bg_badge_resolved);
-            TypedValue tv = new TypedValue();
-            holder.itemView.getContext().getTheme().resolveAttribute(android.R.attr.textColorSecondary, tv, true);
-            holder.tvStatus.setTextColor(tv.data);
+            holder.tvStatus.setTextColor(Color.parseColor("#1B5E20"));
         } else {
             holder.tvStatus.setText("PENDING");
             holder.tvStatus.setBackgroundResource(R.drawable.bg_badge_pending);
-            TypedValue tv = new TypedValue();
-            holder.itemView.getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true);
-            holder.tvStatus.setTextColor(tv.data);
+            holder.tvStatus.setTextColor(Color.parseColor("#0D47A1"));
         }
 
         holder.itemView.setOnClickListener(v -> {

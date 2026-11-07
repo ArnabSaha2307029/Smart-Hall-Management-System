@@ -89,10 +89,10 @@ public class CalendarDayAdapter extends RecyclerView.Adapter<CalendarDayAdapter.
                 binding.tvDayNumber.setTextColor(Color.WHITE);
             } else if ("HALL_CLOSE".equalsIgnoreCase(status)) {
                 binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_hall_close));
-                binding.tvDayNumber.setTextColor(colorPrimary);
+                binding.tvDayNumber.setTextColor(Color.parseColor("#B71C1C"));
             } else if ("OFF".equalsIgnoreCase(status)) {
                 binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_meal_off));
-                binding.tvDayNumber.setTextColor(colorPrimary);
+                binding.tvDayNumber.setTextColor(Color.parseColor("#212121"));
             } else {
                 binding.tvDayNumber.setBackground(ContextCompat.getDrawable(context, R.drawable.bg_meal_on));
                 binding.tvDayNumber.setTextColor(Color.WHITE);

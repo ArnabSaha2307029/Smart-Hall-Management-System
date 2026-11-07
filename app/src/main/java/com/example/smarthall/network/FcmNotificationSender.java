@@ -28,7 +28,7 @@ public class FcmNotificationSender {
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private static void sendFcmMessage(Context context, String topic, JSONObject data, String logTag) {
+    private static void sendFcmRawMessage(Context context, JSONObject messageObj, String logTag) {
         executor.execute(() -> {
             String accessToken;
             String projectId;
@@ -58,17 +58,6 @@ public class FcmNotificationSender {
             }
 
             try {
-                String cleanTopic = (topic != null ? topic : "").trim().replaceAll("\\s+", "");
-                Log.d("FCM_HTTP", "Sending FCM to topic: " + cleanTopic);
-
-                JSONObject androidObj = new JSONObject();
-                androidObj.put("priority", "HIGH");
-
-                JSONObject messageObj = new JSONObject();
-                messageObj.put("topic", cleanTopic);
-                messageObj.put("data", data);
-                messageObj.put("android", androidObj);
-
                 JSONObject payload = new JSONObject();
                 payload.put("message", messageObj);
 
@@ -86,7 +75,7 @@ public class FcmNotificationSender {
                 try (Response response = client.newCall(request).execute()) {
                     int code = response.code();
                     String errorBody = response.body() != null ? response.body().string() : "";
-                    Log.d("FCM_HTTP", "FCM HTTP response code: " + code + " | body: " + errorBody);
+                    Log.d("FCM_HTTP", logTag + " FCM HTTP response code: " + code + " | body: " + errorBody);
                     if (!response.isSuccessful()) {
                         Log.e("StudentDashboardError", "Operation failed: FCM delivery failed with code: " + code + " | body: " + errorBody);
                     }
@@ -95,6 +84,60 @@ public class FcmNotificationSender {
                 Log.e("StudentDashboardError", "Operation failed: Failed to send FCM notification: " + e.getMessage(), e);
             }
         });
+    }
+
+    private static void sendFcmMessage(Context context, String topic, JSONObject data, String logTag) {
+        try {
+            String cleanTopic = (topic != null ? topic : "").trim().replaceAll("\\s+", "");
+            Log.d("FCM_HTTP", "Sending FCM to topic: " + cleanTopic);
+
+            JSONObject androidObj = new JSONObject();
+            androidObj.put("priority", "HIGH");
+
+            JSONObject messageObj = new JSONObject();
+            messageObj.put("topic", cleanTopic);
+            messageObj.put("data", data);
+            messageObj.put("android", androidObj);
+
+            sendFcmRawMessage(context, messageObj, logTag);
+        } catch (Exception e) {
+            Log.e("StudentDashboardError", "Operation failed: Failed to assemble FCM message: " + e.getMessage(), e);
+        }
+    }
+
+    public static void sendSosAlertNotification(Context context, String alertId, String senderName, String senderRoll, String roomNo, String message, long timestamp) {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("type", "sos_alert");
+            data.put("alertId", alertId != null ? alertId.trim() : "");
+            data.put("senderName", senderName != null ? senderName.trim() : "");
+            data.put("senderRoll", senderRoll != null ? senderRoll.trim() : "");
+            data.put("roomNo", roomNo != null ? roomNo.trim() : "");
+            data.put("message", message != null ? message.trim() : "");
+            data.put("timestamp", String.valueOf(timestamp));
+
+            JSONObject androidNotification = new JSONObject();
+            androidNotification.put("title", "EMERGENCY SOS: Room " + (roomNo != null ? roomNo.trim() : ""));
+            androidNotification.put("body", (senderName != null ? senderName.trim() : "Student")
+                    + " (" + (senderRoll != null ? senderRoll.trim() : "") + ") needs immediate assistance!");
+            androidNotification.put("channel_id", "sos_emergency_alert_channel");
+            androidNotification.put("notification_priority", "PRIORITY_MAX");
+            androidNotification.put("default_vibrate_timings", true);
+            androidNotification.put("default_sound", true);
+
+            JSONObject androidObj = new JSONObject();
+            androidObj.put("priority", "HIGH");
+            androidObj.put("notification", androidNotification);
+
+            JSONObject messageObj = new JSONObject();
+            messageObj.put("topic", "hall_sos_alerts");
+            messageObj.put("data", data);
+            messageObj.put("android", androidObj);
+
+            sendFcmRawMessage(context, messageObj, "FCM_SOS");
+        } catch (Exception e) {
+            Log.e("FCM_SOS", "Failed to construct SOS alert payload", e);
+        }
     }
 
     public static void sendNoticeTopicNotification(Context context, String noticeId, String title, String message, String poster, long timestamp) {

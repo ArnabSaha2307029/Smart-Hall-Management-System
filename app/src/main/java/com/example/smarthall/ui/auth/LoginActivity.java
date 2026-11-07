@@ -337,35 +337,83 @@ public class LoginActivity extends BaseActivity {
         finish();
     }
 
+    private void completeStudentNavigation(String uid, String roll) {
+        SharedPreferences.Editor editor = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                .edit()
+                .putString("user_role", "student");
+        if (!TextUtils.isEmpty(roll)) {
+            editor.putString("roll", roll);
+            editor.putString("student_roll", roll);
+            editor.putString("user_roll", roll);
+
+            getSharedPreferences("student_prefs_" + uid, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("student_roll", roll)
+                    .apply();
+        }
+        editor.apply();
+
+        Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
+        intent.putExtra("EXTRA_USER_ID", uid);
+        intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
+        if (!TextUtils.isEmpty(roll)) {
+            intent.putExtra("EXTRA_STUDENT_ROLL", roll);
+        }
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
     private void navigateToStudent(String uid) {
-        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
-            String roll = "";
-            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
-                DocumentSnapshot doc = task.getResult();
-                roll = doc.getString("roll");
+        SharedPreferences sessionPrefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+        String cachedRoll = sessionPrefs.getString("roll", "");
+        if (TextUtils.isEmpty(cachedRoll)) {
+            cachedRoll = sessionPrefs.getString("student_roll", "");
+        }
+        if (TextUtils.isEmpty(cachedRoll)) {
+            cachedRoll = getSharedPreferences("student_prefs_" + uid, Context.MODE_PRIVATE)
+                    .getString("student_roll", "");
+        }
+
+        if (!TextUtils.isEmpty(cachedRoll)) {
+            final String rollToUse = cachedRoll;
+            db.collection("students").document(rollToUse).get().addOnCompleteListener(task -> {
+                completeStudentNavigation(uid, rollToUse);
+            });
+            return;
+        }
+
+        db.collection("students").whereEqualTo("uid", uid).limit(1).get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
+                DocumentSnapshot doc = task.getResult().getDocuments().get(0);
+                String roll = doc.getString("roll");
                 if (TextUtils.isEmpty(roll)) {
                     roll = doc.getString("rollNumber");
                 }
                 if (TextUtils.isEmpty(roll)) {
-                    roll = doc.getString("studentId");
+                    roll = doc.getId();
                 }
+                completeStudentNavigation(uid, roll);
+            } else {
+                db.collection("users").document(uid).get().addOnCompleteListener(userTask -> {
+                    String roll = "";
+                    if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
+                        DocumentSnapshot userDoc = userTask.getResult();
+                        roll = userDoc.getString("roll");
+                        if (TextUtils.isEmpty(roll)) {
+                            roll = userDoc.getString("rollNumber");
+                        }
+                    }
+                    if (!TextUtils.isEmpty(roll)) {
+                        final String finalRoll = roll;
+                        db.collection("students").document(finalRoll).get().addOnCompleteListener(studentTask -> {
+                            completeStudentNavigation(uid, finalRoll);
+                        });
+                    } else {
+                        completeStudentNavigation(uid, "");
+                    }
+                });
             }
-            SharedPreferences.Editor editor = getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                    .edit()
-                    .putString("user_role", "student");
-            if (!TextUtils.isEmpty(roll)) {
-                editor.putString("roll", roll);
-                editor.putString("student_roll", roll);
-                editor.putString("user_roll", roll);
-            }
-            editor.apply();
-
-            Intent intent = new Intent(LoginActivity.this, StudentDashboardActivity.class);
-            intent.putExtra("EXTRA_USER_ID", uid);
-            intent.putExtra("EXTRA_USER_ROLE", "STUDENT");
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
         });
     }
 

@@ -49,6 +49,7 @@ import com.example.smarthall.model.PaymentRecord;
 import com.example.smarthall.model.Room;
 import com.example.smarthall.model.SeatOccupant;
 import com.example.smarthall.model.Student;
+import com.example.smarthall.network.FcmNotificationSender;
 import com.example.smarthall.receiver.NetworkChangeReceiver;
 import com.example.smarthall.repository.HallRepository;
 import com.example.smarthall.services.EmergencySosForegroundService;
@@ -275,19 +276,30 @@ public class StudentDashboardActivity extends BaseActivity {
             return;
         }
 
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_sos_alerts");
+
         SharedPreferences prefs = getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE);
 
         student = new Student();
         student.setId(currentUser.getUid());
         student.setName(prefs.getString("student_name", "Student"));
         String cachedRoll = prefs.getString("student_roll", "");
+        if (cachedRoll.isEmpty()) {
+            cachedRoll = getSharedPreferences("user_session", Context.MODE_PRIVATE).getString("roll", "");
+        }
+        if (cachedRoll.isEmpty()) {
+            cachedRoll = getIntent().getStringExtra("EXTRA_STUDENT_ROLL");
+            if (cachedRoll == null) cachedRoll = "";
+        }
         student.setRollNumber(cachedRoll);
         if (!cachedRoll.isEmpty()) {
             getSharedPreferences("user_session", Context.MODE_PRIVATE)
                     .edit()
                     .putString("user_roll", cachedRoll)
                     .putString("student_roll", cachedRoll)
+                    .putString("roll", cachedRoll)
                     .apply();
+            cleanupGhostUidDocument(currentUser.getUid(), cachedRoll);
         }
         student.setDepartment(prefs.getString("student_department", ""));
         student.setEmail(prefs.getString("student_email", currentUser.getEmail() != null ? currentUser.getEmail() : ""));
@@ -462,7 +474,59 @@ public class StudentDashboardActivity extends BaseActivity {
                 roll = prefs.getString("student_roll", "").trim();
             }
         }
+        if (TextUtils.isEmpty(roll)) {
+            SharedPreferences sessionPrefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+            roll = sessionPrefs.getString("roll", "").trim();
+            if (TextUtils.isEmpty(roll)) {
+                roll = sessionPrefs.getString("student_roll", "").trim();
+            }
+            if (TextUtils.isEmpty(roll)) {
+                roll = sessionPrefs.getString("user_roll", "").trim();
+            }
+        }
         return roll;
+    }
+
+    private void cleanupGhostUidDocument(String uid, String studentRoll) {
+        if (TextUtils.isEmpty(uid) || TextUtils.isEmpty(studentRoll) || uid.equals(studentRoll)) {
+            return;
+        }
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("students").document(uid).get().addOnSuccessListener(snapshot -> {
+            if (snapshot != null && snapshot.exists()) {
+                Map<String, Object> ghostData = snapshot.getData();
+                if (ghostData != null && !ghostData.isEmpty()) {
+                    Map<String, Object> fieldsToMerge = new HashMap<>();
+                    String[] syncKeys = {"profileImageBase64", "boarderNo", "dining", "feeStatus", "room", "seat", "allocatedRoom", "allocatedSeat", "allocationStatus", "isDiningManager"};
+                    for (String key : syncKeys) {
+                        Object val = ghostData.get(key);
+                        if (val != null) {
+                            fieldsToMerge.put(key, val);
+                        }
+                    }
+
+                    if (!fieldsToMerge.isEmpty()) {
+                        db.collection("students").document(studentRoll)
+                                .set(fieldsToMerge, SetOptions.merge())
+                                .addOnSuccessListener(aVoid -> {
+                                    db.collection("students").document(uid).delete()
+                                            .addOnSuccessListener(del -> Log.d("GhostCleanup", "Obsolete ghost UID document deleted: " + uid))
+                                            .addOnFailureListener(e -> Log.e("GhostCleanup", "Failed to delete ghost UID document", e));
+                                })
+                                .addOnFailureListener(e -> Log.e("GhostCleanup", "Failed to merge ghost data into roll document", e));
+                    } else {
+                        db.collection("students").document(uid).delete()
+                                .addOnSuccessListener(del -> Log.d("GhostCleanup", "Empty ghost UID document deleted: " + uid))
+                                .addOnFailureListener(e -> Log.e("GhostCleanup", "Failed to delete ghost UID document", e));
+                    }
+                } else {
+                    db.collection("students").document(uid).delete()
+                            .addOnSuccessListener(del -> Log.d("GhostCleanup", "Empty ghost UID document deleted: " + uid))
+                            .addOnFailureListener(e -> Log.e("GhostCleanup", "Failed to delete ghost UID document", e));
+                }
+            }
+        }).addOnFailureListener(e -> Log.e("GhostCleanup", "Failed to check ghost UID document", e));
     }
 
     private void setupDiningManagerListener() {
@@ -657,6 +721,16 @@ public class StudentDashboardActivity extends BaseActivity {
                             Log.e("EmergencySos", "Failed to broadcast emergency SOS", e);
                             Toast.makeText(StudentDashboardActivity.this, "Failed to broadcast emergency SOS. Please retry.", Toast.LENGTH_SHORT).show();
                         });
+
+                FcmNotificationSender.sendSosAlertNotification(
+                        StudentDashboardActivity.this,
+                        sosId,
+                        currentStudentName,
+                        currentStudentRoll,
+                        locationText,
+                        incidentText.isEmpty() ? "Immediate assistance needed" : incidentText,
+                        System.currentTimeMillis()
+                );
             });
         });
 
@@ -692,6 +766,7 @@ public class StudentDashboardActivity extends BaseActivity {
     }
 
     private void subscribeToStudentTopics() {
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_sos_alerts");
         if (!isNotificationPermissionGranted) {
             return;
         }
@@ -927,19 +1002,54 @@ public class StudentDashboardActivity extends BaseActivity {
         String uid = currentUser.getUid();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         SharedPreferences prefs = getSharedPreferences("student_prefs_" + uid, Context.MODE_PRIVATE);
+        String roll = getActiveStudentRoll();
 
-        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
-            DocumentSnapshot snapshot = null;
-            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
-                snapshot = task.getResult();
-            }
+        if (!TextUtils.isEmpty(roll)) {
+            db.collection("students").document(roll).get().addOnCompleteListener(task -> {
+                if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                    applyStudentSnapshot(task.getResult(), prefs);
+                    cleanupGhostUidDocument(uid, roll);
+                } else {
+                    fallbackLoadByUidOrUsers(db, uid, prefs);
+                }
+            });
+        } else {
+            fallbackLoadByUidOrUsers(db, uid, prefs);
+        }
+    }
 
-            if (snapshot != null) {
-                applyStudentSnapshot(snapshot, prefs);
+    private void fallbackLoadByUidOrUsers(FirebaseFirestore db, String uid, SharedPreferences prefs) {
+        db.collection("students").whereEqualTo("uid", uid).limit(1).get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
+                DocumentSnapshot doc = task.getResult().getDocuments().get(0);
+                applyStudentSnapshot(doc, prefs);
+                String resolvedRoll = doc.getString("roll");
+                if (TextUtils.isEmpty(resolvedRoll)) {
+                    resolvedRoll = doc.getString("rollNumber");
+                }
+                if (TextUtils.isEmpty(resolvedRoll)) {
+                    resolvedRoll = doc.getId();
+                }
+                if (!TextUtils.isEmpty(resolvedRoll)) {
+                    cleanupGhostUidDocument(uid, resolvedRoll);
+                }
             } else {
                 db.collection("users").document(uid).get().addOnCompleteListener(userTask -> {
                     if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
-                        applyStudentSnapshot(userTask.getResult(), prefs);
+                        DocumentSnapshot userDoc = userTask.getResult();
+                        applyStudentSnapshot(userDoc, prefs);
+                        String userRoll = userDoc.getString("roll");
+                        if (TextUtils.isEmpty(userRoll)) {
+                            userRoll = userDoc.getString("rollNumber");
+                        }
+                        if (!TextUtils.isEmpty(userRoll)) {
+                            cleanupGhostUidDocument(uid, userRoll);
+                            db.collection("students").document(userRoll).get().addOnSuccessListener(sDoc -> {
+                                if (sDoc != null && sDoc.exists()) {
+                                    applyStudentSnapshot(sDoc, prefs);
+                                }
+                            });
+                        }
                     }
                 });
             }
@@ -954,6 +1064,10 @@ public class StudentDashboardActivity extends BaseActivity {
         }
         if (TextUtils.isEmpty(roll)) {
             roll = doc.getString("studentId");
+        }
+        FirebaseUser currentAuthUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (TextUtils.isEmpty(roll) && doc.getId() != null && (currentAuthUser == null || !doc.getId().equals(currentAuthUser.getUid()))) {
+            roll = doc.getId();
         }
         String dept = doc.getString("department");
         String email = doc.getString("email");
@@ -1643,19 +1757,20 @@ public class StudentDashboardActivity extends BaseActivity {
         if (currentUser == null || file == null || TextUtils.isEmpty(base64Image)) {
             return;
         }
+        String roll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(roll) && student != null && !TextUtils.isEmpty(student.getRollNumber())) {
+            roll = student.getRollNumber();
+        }
+        if (TextUtils.isEmpty(roll)) {
+            Log.e("StudentDashboard", "Failed to upload profile image: student roll is missing");
+            return;
+        }
         try {
             FirebaseFirestore db = FirebaseFirestore.getInstance();
             db.collection("students")
-                    .document(currentUser.getUid())
+                    .document(roll)
                     .set(Collections.singletonMap("profileImageBase64", base64Image), SetOptions.merge())
                     .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to upload profile image to Firestore", e));
-
-            if (student != null && !TextUtils.isEmpty(student.getRollNumber())) {
-                db.collection("students")
-                        .document(student.getRollNumber())
-                        .set(Collections.singletonMap("profileImageBase64", base64Image), SetOptions.merge())
-                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to sync roll profile image", e));
-            }
         } catch (Exception e) {
             Log.e("StudentDashboard", "Failed to write profile image to Firestore", e);
         }
@@ -1680,9 +1795,14 @@ public class StudentDashboardActivity extends BaseActivity {
 
         binding.ivProfileAvatar.setImageResource(R.drawable.ic_person);
 
+        String roll = getActiveStudentRoll();
+        if (TextUtils.isEmpty(roll)) {
+            return;
+        }
+
         FirebaseFirestore.getInstance()
                 .collection("students")
-                .document(currentUser.getUid())
+                .document(roll)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot != null && documentSnapshot.exists()) {
@@ -1734,67 +1854,77 @@ public class StudentDashboardActivity extends BaseActivity {
         }
 
         String uid = currentUser.getUid();
+        String roll = getActiveStudentRoll();
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        db.collection("students").document(uid).get().addOnCompleteListener(task -> {
-            String firestoreBoarderNo = null;
-            String firestoreDining = null;
+        if (!TextUtils.isEmpty(roll)) {
+            db.collection("students").document(roll).get().addOnCompleteListener(task -> {
+                String firestoreBoarderNo = null;
+                String firestoreDining = null;
 
-            if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
-                firestoreBoarderNo = task.getResult().getString("boarderNo");
-                firestoreDining = task.getResult().getString("dining");
-            }
-
-            if (!TextUtils.isEmpty(firestoreBoarderNo) && !TextUtils.isEmpty(firestoreDining)) {
-                applyBoarderAndDining(firestoreBoarderNo, firestoreDining, prefs);
-                return;
-            }
-
-            final String existingBoarderNo = firestoreBoarderNo;
-            final String existingDining = firestoreDining;
-
-            db.collection("users").document(uid).get().addOnCompleteListener(userTask -> {
-                String finalBoarderNo = existingBoarderNo;
-                String finalDining = existingDining;
-
-                if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
-                    if (TextUtils.isEmpty(finalBoarderNo)) {
-                        finalBoarderNo = userTask.getResult().getString("boarderNo");
-                    }
-                    if (TextUtils.isEmpty(finalDining)) {
-                        finalDining = userTask.getResult().getString("dining");
-                    }
+                if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
+                    firestoreBoarderNo = task.getResult().getString("boarderNo");
+                    firestoreDining = task.getResult().getString("dining");
                 }
 
-                if (TextUtils.isEmpty(finalBoarderNo)) {
-                    String cached = prefs.getString("boarder_no", null);
-                    if (!TextUtils.isEmpty(cached)) {
-                        finalBoarderNo = cached;
-                    } else {
-                        finalBoarderNo = String.valueOf(1000 + new Random().nextInt(9000));
-                    }
+                if (!TextUtils.isEmpty(firestoreBoarderNo) && !TextUtils.isEmpty(firestoreDining)) {
+                    applyBoarderAndDining(firestoreBoarderNo, firestoreDining, prefs);
+                    return;
                 }
 
-                if (TextUtils.isEmpty(finalDining)) {
-                    String cached = prefs.getString("dining_hall", null);
-                    if (!TextUtils.isEmpty(cached)) {
-                        finalDining = cached;
-                    } else {
-                        finalDining = new Random().nextBoolean() ? "East" : "West";
-                    }
-                }
-
-                applyBoarderAndDining(finalBoarderNo, finalDining, prefs);
-
-                Map<String, Object> updates = new HashMap<>();
-                updates.put("boarderNo", finalBoarderNo);
-                updates.put("dining", finalDining);
-
-                db.collection("students").document(uid).set(updates, SetOptions.merge())
-                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to students", e));
-                db.collection("users").document(uid).set(updates, SetOptions.merge())
-                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to users", e));
+                resolveBoarderAndDiningFallback(db, uid, roll, firestoreBoarderNo, firestoreDining, prefs);
             });
+        } else {
+            resolveBoarderAndDiningFallback(db, uid, roll, null, null, prefs);
+        }
+    }
+
+    private void resolveBoarderAndDiningFallback(FirebaseFirestore db, String uid, String roll,
+                                                 String existingBoarderNo, String existingDining,
+                                                 SharedPreferences prefs) {
+        db.collection("users").document(uid).get().addOnCompleteListener(userTask -> {
+            String finalBoarderNo = existingBoarderNo;
+            String finalDining = existingDining;
+
+            if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
+                if (TextUtils.isEmpty(finalBoarderNo)) {
+                    finalBoarderNo = userTask.getResult().getString("boarderNo");
+                }
+                if (TextUtils.isEmpty(finalDining)) {
+                    finalDining = userTask.getResult().getString("dining");
+                }
+            }
+
+            if (TextUtils.isEmpty(finalBoarderNo)) {
+                String cached = prefs.getString("boarder_no", null);
+                if (!TextUtils.isEmpty(cached)) {
+                    finalBoarderNo = cached;
+                } else {
+                    finalBoarderNo = String.valueOf(1000 + new Random().nextInt(9000));
+                }
+            }
+
+            if (TextUtils.isEmpty(finalDining)) {
+                String cached = prefs.getString("dining_hall", null);
+                if (!TextUtils.isEmpty(cached)) {
+                    finalDining = cached;
+                } else {
+                    finalDining = new Random().nextBoolean() ? "East" : "West";
+                }
+            }
+
+            applyBoarderAndDining(finalBoarderNo, finalDining, prefs);
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("boarderNo", finalBoarderNo);
+            updates.put("dining", finalDining);
+
+            if (!TextUtils.isEmpty(roll)) {
+                db.collection("students").document(roll).set(updates, SetOptions.merge())
+                        .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to students", e));
+            }
+            db.collection("users").document(uid).set(updates, SetOptions.merge())
+                    .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist boarder/dining to users", e));
         });
     }
 
@@ -1835,8 +1965,12 @@ public class StudentDashboardActivity extends BaseActivity {
                     Map<String, Object> rtdbUpdates = new HashMap<>();
                     rtdbUpdates.put("googleEmail", linkedGoogleEmail);
                     rtdb.getReference("students").child(studentRoll).updateChildren(rtdbUpdates);
+
+                    FirebaseFirestore.getInstance().collection("students").document(studentRoll)
+                            .set(updates, SetOptions.merge())
+                            .addOnFailureListener(e -> Log.e("StudentDashboard", "Failed to persist linked Google to students", e));
                 }
-                FirebaseFirestore.getInstance().collection("students").document(user.getUid())
+                FirebaseFirestore.getInstance().collection("users").document(user.getUid())
                         .set(updates, SetOptions.merge())
                         .addOnCompleteListener(t -> {
                             Toast.makeText(StudentDashboardActivity.this, "Account linked successfully", Toast.LENGTH_SHORT).show();

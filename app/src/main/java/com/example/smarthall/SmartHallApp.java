@@ -20,7 +20,8 @@ public class SmartHallApp extends Application {
 
     public static final String CHANNEL_ID = "hall_notices_channel";
     public static final String CHAT_CHANNEL_ID = "hall_chat_channel";
-    public static final String SOS_CHANNEL_ID = "emergency_alerts_channel";
+    public static final String SOS_CHANNEL_ID = "sos_emergency_alert_channel";
+    public static final String LEGACY_SOS_CHANNEL_ID = "emergency_alerts_channel";
 
     private static int runningActivities = 0;
 
@@ -64,6 +65,7 @@ public class SmartHallApp extends Application {
         });
         createNotificationChannels();
         logDeviceToken();
+        subscribeToSosTopic();
         startSosServiceIfLoggedIn();
 
         android.content.SharedPreferences prefs = getSharedPreferences("smart_hall_prefs", MODE_PRIVATE);
@@ -115,7 +117,7 @@ public class SmartHallApp extends Application {
                 sosChannel.enableLights(true);
                 sosChannel.setLightColor(Color.RED);
                 sosChannel.enableVibration(true);
-                sosChannel.setVibrationPattern(new long[]{0, 800, 400, 800, 400});
+                sosChannel.setVibrationPattern(new long[]{0, 800, 400, 800, 400, 800});
                 sosChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
                 sosChannel.setBypassDnd(true);
                 AudioAttributes audioAttributes = new AudioAttributes.Builder()
@@ -127,8 +129,34 @@ public class SmartHallApp extends Application {
                     sosChannel.setSound(alarmUri, audioAttributes);
                 }
                 nm.createNotificationChannel(sosChannel);
+
+                NotificationChannel legacySosChannel = new NotificationChannel(
+                        LEGACY_SOS_CHANNEL_ID,
+                        "Emergency Alerts (Legacy)",
+                        NotificationManager.IMPORTANCE_HIGH);
+                legacySosChannel.enableLights(true);
+                legacySosChannel.setLightColor(Color.RED);
+                legacySosChannel.enableVibration(true);
+                legacySosChannel.setVibrationPattern(new long[]{0, 800, 400, 800, 400, 800});
+                legacySosChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                legacySosChannel.setBypassDnd(true);
+                if (alarmUri != null) {
+                    legacySosChannel.setSound(alarmUri, audioAttributes);
+                }
+                nm.createNotificationChannel(legacySosChannel);
             }
         }
+    }
+
+    private void subscribeToSosTopic() {
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_sos_alerts")
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d("FCM_SUB", "Successfully subscribed to hall_sos_alerts topic");
+                    } else {
+                        Log.w("FCM_SUB", "Failed to subscribe to hall_sos_alerts topic", task.getException());
+                    }
+                });
     }
 
     private void logDeviceToken() {

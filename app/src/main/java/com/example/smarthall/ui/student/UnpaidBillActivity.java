@@ -98,7 +98,14 @@ public class UnpaidBillActivity extends BaseActivity {
         currentStudent.setDining(cleanDining);
 
         if (TextUtils.isEmpty(studentRoll)) {
-            FirebaseFirestore.getInstance().collection("students").document(user.getUid()).get()
+            studentRoll = getSharedPreferences("user_session", Context.MODE_PRIVATE).getString("roll", null);
+        }
+        if (TextUtils.isEmpty(studentRoll)) {
+            studentRoll = getSharedPreferences("user_session", Context.MODE_PRIVATE).getString("student_roll", null);
+        }
+
+        if (TextUtils.isEmpty(studentRoll)) {
+            FirebaseFirestore.getInstance().collection("users").document(user.getUid()).get()
                     .addOnSuccessListener(doc -> {
                         if (doc != null && doc.exists()) {
                             String r = doc.getString("roll");

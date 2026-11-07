@@ -430,13 +430,8 @@ public class RoomManagementActivity extends BaseActivity {
             unallocatedStudents.clear();
 
             if (snapshots != null) {
-                Map<String, Student> unallocatedMap = new LinkedHashMap<>();
-
                 for (DocumentSnapshot doc : snapshots.getDocuments()) {
-                    String roll = doc.getString("roll");
-                    if (TextUtils.isEmpty(roll)) {
-                        roll = doc.getString("rollNumber");
-                    }
+                    String roll = doc.getId();
                     if (TextUtils.isEmpty(roll)) {
                         continue;
                     }
@@ -457,45 +452,26 @@ public class RoomManagementActivity extends BaseActivity {
                         uid = doc.getString("id");
                     }
                     if (TextUtils.isEmpty(uid)) {
-                        uid = doc.getId();
+                        uid = roll;
                     }
                     student.setId(uid);
 
                     String name = doc.getString("name");
                     if (!TextUtils.isEmpty(name)) {
                         student.setName(name.trim());
+                    } else if (TextUtils.isEmpty(student.getName())) {
+                        student.setName("Student " + roll);
                     }
 
                     String dept = doc.getString("department");
                     if (!TextUtils.isEmpty(dept)) {
                         student.setDepartment(dept.trim());
+                    } else if (TextUtils.isEmpty(student.getDepartment())) {
+                        student.setDepartment("N/A");
                     }
 
-                    Student existing = unallocatedMap.get(roll);
-                    if (existing == null) {
-                        unallocatedMap.put(roll, student);
-                    } else {
-                        if (TextUtils.isEmpty(existing.getId()) && !TextUtils.isEmpty(student.getId())) {
-                            existing.setId(student.getId());
-                        }
-                        if ((TextUtils.isEmpty(existing.getName()) || existing.getName().startsWith("Student ")) && !TextUtils.isEmpty(student.getName())) {
-                            existing.setName(student.getName());
-                        }
-                        if ((TextUtils.isEmpty(existing.getDepartment()) || "N/A".equals(existing.getDepartment())) && !TextUtils.isEmpty(student.getDepartment())) {
-                            existing.setDepartment(student.getDepartment());
-                        }
-                    }
-                }
-
-                unallocatedStudents.addAll(unallocatedMap.values());
-                for (Student s : unallocatedStudents) {
-                    if (TextUtils.isEmpty(s.getName())) {
-                        s.setName("Student " + s.getRoll());
-                    }
-                    if (TextUtils.isEmpty(s.getDepartment())) {
-                        s.setDepartment("N/A");
-                    }
-                    s.setAllocationStatus("UNALLOCATED");
+                    student.setAllocationStatus("UNALLOCATED");
+                    unallocatedStudents.add(student);
                 }
 
                 Collections.sort(unallocatedStudents, (s1, s2) -> {

@@ -31,7 +31,7 @@ import java.util.Set;
 public class EmergencySosManager {
 
     private static final String RTDB_URL = "https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com";
-    public static final String SOS_CHANNEL_ID = "emergency_alerts_channel";
+    public static final String SOS_CHANNEL_ID = "sos_emergency_alert_channel";
     private static final long TEN_MINUTES_MS = 10 * 60 * 1000L;
 
     private static final Set<String> handledSosIds = Collections.synchronizedSet(new HashSet<>());
@@ -51,9 +51,9 @@ public class EmergencySosManager {
                 );
                 channel.setDescription("Full-screen emergency SOS alerts");
                 channel.enableLights(true);
-                channel.setLightColor(0xFF8B0000);
+                channel.setLightColor(0xFFB71C1C);
                 channel.enableVibration(true);
-                channel.setVibrationPattern(new long[]{0, 800, 400, 800, 400});
+                channel.setVibrationPattern(new long[]{0, 800, 400, 800, 400, 800});
                 channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
                 channel.setBypassDnd(true);
                 Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);

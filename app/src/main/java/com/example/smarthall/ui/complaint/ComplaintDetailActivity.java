@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -204,19 +205,18 @@ public class ComplaintDetailActivity extends BaseActivity {
 
     private void updateStatusUI(String status) {
         currentStatus = status != null ? status : "pending";
-        if (Complaint.STATUS_RESOLVED.equalsIgnoreCase(currentStatus)) {
+        boolean isResolved = Complaint.STATUS_RESOLVED.equalsIgnoreCase(currentStatus)
+                || "closed".equalsIgnoreCase(currentStatus);
+        binding.tvDetailStatus.setVisibility(View.VISIBLE);
+        if (isResolved) {
             binding.tvDetailStatus.setText("RESOLVED");
             binding.tvDetailStatus.setBackgroundResource(R.drawable.bg_badge_resolved);
-            TypedValue tv = new TypedValue();
-            getTheme().resolveAttribute(android.R.attr.textColorSecondary, tv, true);
-            binding.tvDetailStatus.setTextColor(tv.data);
+            binding.tvDetailStatus.setTextColor(Color.parseColor("#1B5E20"));
             binding.btnMarkResolved.setVisibility(View.GONE);
         } else {
             binding.tvDetailStatus.setText("PENDING");
             binding.tvDetailStatus.setBackgroundResource(R.drawable.bg_badge_pending);
-            TypedValue tv = new TypedValue();
-            getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true);
-            binding.tvDetailStatus.setTextColor(tv.data);
+            binding.tvDetailStatus.setTextColor(Color.parseColor("#0D47A1"));
             if (isAdmin) {
                 binding.btnMarkResolved.setVisibility(View.VISIBLE);
             } else {

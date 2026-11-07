@@ -173,6 +173,7 @@ public class AdminDashboardActivity extends BaseActivity {
         switchTab(TAB_STUDENTS);
         Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
         ContextCompat.startForegroundService(this, serviceIntent);
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_sos_alerts");
         checkAndRequestBatteryOptimizationExemption();
     }
 
@@ -290,6 +291,7 @@ public class AdminDashboardActivity extends BaseActivity {
     }
 
     private void subscribeToAdminTopics() {
+        FirebaseMessaging.getInstance().subscribeToTopic("hall_sos_alerts");
         String topicName = "admin_inbox";
         Log.e("TOPIC_CHECK", "Subscribing strictly to: [" + topicName + "]");
         FirebaseMessaging.getInstance().subscribeToTopic(topicName)
@@ -527,27 +529,18 @@ public class AdminDashboardActivity extends BaseActivity {
                 .collection("students")
                 .addSnapshotListener((snapshots, error) -> {
                     if (error != null || snapshots == null) return;
-                    Map<String, Student> uniqueStudentsMap = new LinkedHashMap<>();
+                    List<Student> liveStudentList = new ArrayList<>();
                     for (DocumentSnapshot doc : snapshots.getDocuments()) {
                         Student student = doc.toObject(Student.class);
                         if (student != null) {
-                            if (TextUtils.isEmpty(student.getId())) {
-                                student.setId(doc.getId());
+                            String roll = doc.getId();
+                            if (TextUtils.isEmpty(student.getRollNumber())) {
+                                student.setRollNumber(roll);
                             }
-                            String roll = student.getRoll();
-                            if (!TextUtils.isEmpty(roll)) {
-                                if (uniqueStudentsMap.containsKey(roll)) {
-                                    Student existing = uniqueStudentsMap.get(roll);
-                                    if (existing != null && TextUtils.isEmpty(existing.getProfileImageBase64()) && !TextUtils.isEmpty(student.getProfileImageBase64())) {
-                                        uniqueStudentsMap.put(roll, student);
-                                    }
-                                } else {
-                                    uniqueStudentsMap.put(roll, student);
-                                }
-                            }
+                            student.setId(roll);
+                            liveStudentList.add(student);
                         }
                     }
-                    List<Student> liveStudentList = new ArrayList<>(uniqueStudentsMap.values());
                     java.util.Collections.sort(liveStudentList, (s1, s2) -> s1.getRoll().compareTo(s2.getRoll()));
                     studentAdapter.updateData(liveStudentList);
                     binding.tvStatTotalStudents.setText(String.valueOf(liveStudentList.size()));
@@ -678,8 +671,9 @@ public class AdminDashboardActivity extends BaseActivity {
             dialogBinding.ivDetailAvatar.setImageResource(R.drawable.ic_person);
         }
 
-        if (!TextUtils.isEmpty(student.getId())) {
-            FirebaseFirestore.getInstance().collection("students").document(student.getId()).get()
+        String rollToQuery = !TextUtils.isEmpty(student.getRollNumber()) ? student.getRollNumber() : student.getId();
+        if (!TextUtils.isEmpty(rollToQuery)) {
+            FirebaseFirestore.getInstance().collection("students").document(rollToQuery).get()
                     .addOnSuccessListener(snapshot -> {
                         if (snapshot != null && snapshot.exists()) {
                             String firestoreBase64 = snapshot.getString("profileImageBase64");
@@ -825,11 +819,12 @@ public class AdminDashboardActivity extends BaseActivity {
                         }
                     });
 
+            if (!TextUtils.isEmpty(studentRoll)) {
+                FirebaseFirestore.getInstance().collection("students").document(studentRoll).update("isDiningManager", newStatus);
+            }
             if (!TextUtils.isEmpty(studentId) && !studentId.equals(studentRoll)) {
                 rtdbStudentsRef.child(studentId).child("isDiningManager").setValue(newStatus);
-                FirebaseFirestore.getInstance().collection("students").document(studentId).update("isDiningManager", newStatus);
             }
-            FirebaseFirestore.getInstance().collection("students").document(studentRoll).update("isDiningManager", newStatus);
         });
 
         dialogBinding.btnDismissDetail.setOnClickListener(v -> {

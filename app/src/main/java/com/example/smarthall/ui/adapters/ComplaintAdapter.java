@@ -67,19 +67,18 @@ public class ComplaintAdapter extends RecyclerView.Adapter<ComplaintAdapter.Comp
             binding.tvStudentInfo.setText(complaint.getStudentName() + " | Room " + complaint.getRoomNo());
             binding.tvComplaintDate.setText(complaint.getDate());
 
-            if (Complaint.STATUS_RESOLVED.equals(complaint.getStatus())) {
+            boolean isResolved = Complaint.STATUS_RESOLVED.equalsIgnoreCase(complaint.getStatus())
+                    || "closed".equalsIgnoreCase(complaint.getStatus());
+            binding.tvComplaintStatus.setVisibility(android.view.View.VISIBLE);
+            if (isResolved) {
                 binding.tvComplaintStatus.setText("RESOLVED");
                 binding.tvComplaintStatus.setBackgroundResource(com.example.smarthall.R.drawable.bg_badge_resolved);
-                android.util.TypedValue tv = new android.util.TypedValue();
-                itemView.getContext().getTheme().resolveAttribute(android.R.attr.textColorSecondary, tv, true);
-                binding.tvComplaintStatus.setTextColor(tv.data);
+                binding.tvComplaintStatus.setTextColor(Color.parseColor("#1B5E20"));
                 if (showAdminControls) binding.btnToggleStatus.setText("Reopen");
             } else {
                 binding.tvComplaintStatus.setText("PENDING");
                 binding.tvComplaintStatus.setBackgroundResource(com.example.smarthall.R.drawable.bg_badge_pending);
-                android.util.TypedValue tv = new android.util.TypedValue();
-                itemView.getContext().getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, tv, true);
-                binding.tvComplaintStatus.setTextColor(tv.data);
+                binding.tvComplaintStatus.setTextColor(Color.parseColor("#0D47A1"));
                 if (showAdminControls) binding.btnToggleStatus.setText("Resolve");
             }
 

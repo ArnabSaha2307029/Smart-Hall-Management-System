@@ -153,30 +153,14 @@ public class RoomAllocationManager {
             String studentUid = student.getId();
             String studentRoll = !TextUtils.isEmpty(student.getRollNumber()) ? student.getRollNumber() : student.getRoll();
 
-            DocumentReference studentUidRef = !TextUtils.isEmpty(studentUid)
-                    ? db.collection("students").document(studentUid) : null;
             DocumentReference studentRollRef = !TextUtils.isEmpty(studentRoll)
                     ? db.collection("students").document(studentRoll) : null;
-
-            DocumentSnapshot studentUidDoc = studentUidRef != null ? transaction.get(studentUidRef) : null;
-            DocumentSnapshot studentRollDoc = null;
-            if (studentRollRef != null && (studentUidRef == null || !studentRollRef.getPath().equals(studentUidRef.getPath()))) {
-                studentRollDoc = transaction.get(studentRollRef);
-            }
+            DocumentSnapshot studentRollDoc = studentRollRef != null ? transaction.get(studentRollRef) : null;
 
             String oldRoom = null;
             String oldSeat = null;
 
-            if (studentUidDoc != null && studentUidDoc.exists()) {
-                oldRoom = studentUidDoc.getString("room");
-                if (TextUtils.isEmpty(oldRoom)) {
-                    oldRoom = studentUidDoc.getString("allocatedRoom");
-                }
-                oldSeat = studentUidDoc.getString("seat");
-                if (TextUtils.isEmpty(oldSeat)) {
-                    oldSeat = studentUidDoc.getString("allocatedSeat");
-                }
-            } else if (studentRollDoc != null && studentRollDoc.exists()) {
+            if (studentRollDoc != null && studentRollDoc.exists()) {
                 oldRoom = studentRollDoc.getString("room");
                 if (TextUtils.isEmpty(oldRoom)) {
                     oldRoom = studentRollDoc.getString("allocatedRoom");
@@ -237,9 +221,6 @@ public class RoomAllocationManager {
             studentUpdates.put("allocatedSeat", seatKey);
             studentUpdates.put("allocationStatus", "ALLOCATED");
 
-            if (studentUidRef != null) {
-                transaction.set(studentUidRef, studentUpdates, SetOptions.merge());
-            }
             if (studentRollRef != null) {
                 transaction.set(studentRollRef, studentUpdates, SetOptions.merge());
             }
@@ -303,12 +284,6 @@ public class RoomAllocationManager {
                 }
             }
 
-            DocumentReference uidRef = !TextUtils.isEmpty(uid) ? db.collection("students").document(uid) : null;
-            DocumentSnapshot uidDoc = null;
-            if (uidRef != null && (rollRef == null || !uidRef.getPath().equals(rollRef.getPath()))) {
-                uidDoc = transaction.get(uidRef);
-            }
-
             seats.put(seatKey, null);
             int occupied = countOccupiedSeats(seats);
 
@@ -326,9 +301,6 @@ public class RoomAllocationManager {
 
             if (rollRef != null) {
                 transaction.set(rollRef, studentUpdates, SetOptions.merge());
-            }
-            if (uidRef != null) {
-                transaction.set(uidRef, studentUpdates, SetOptions.merge());
             }
             if (!TextUtils.isEmpty(uid)) {
                 DocumentReference userRef = db.collection("users").document(uid);

@@ -467,7 +467,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Broadcast Emergency Notice"
+                    android:text="@string/nav_broadcast_notice"
                     android:textAlignment="textStart"
                     android:textColor="#212121"
                     android:textSize="14sp"

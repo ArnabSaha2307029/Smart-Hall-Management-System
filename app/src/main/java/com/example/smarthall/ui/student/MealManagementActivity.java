@@ -99,6 +99,13 @@ public class MealManagementActivity extends BaseActivity {
     private void resolveStudentRoll(String uid) {
         studentRoll = getIntent().getStringExtra("EXTRA_STUDENT_ROLL");
         if (TextUtils.isEmpty(studentRoll)) {
+            SharedPreferences sessionPrefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+            studentRoll = sessionPrefs.getString("roll", null);
+            if (TextUtils.isEmpty(studentRoll)) {
+                studentRoll = sessionPrefs.getString("student_roll", null);
+            }
+        }
+        if (TextUtils.isEmpty(studentRoll)) {
             SharedPreferences prefs = getSharedPreferences("student_prefs_" + uid, Context.MODE_PRIVATE);
             studentRoll = prefs.getString("student_roll", null);
             if (TextUtils.isEmpty(studentRoll)) {
@@ -110,7 +117,7 @@ public class MealManagementActivity extends BaseActivity {
         }
 
         if (TextUtils.isEmpty(studentRoll)) {
-            db.collection("students").document(uid).get().addOnSuccessListener(doc -> {
+            db.collection("users").document(uid).get().addOnSuccessListener(doc -> {
                 if (doc != null && doc.exists()) {
                     studentRoll = doc.getString("roll");
                     if (TextUtils.isEmpty(studentRoll)) {

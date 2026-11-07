@@ -56,7 +56,7 @@
                     android:paddingEnd="8dp"
                     android:paddingBottom="3dp"
                     android:text="PENDING"
-                    android:textColor="?attr/colorPrimary"
+                    android:textColor="#0D47A1"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 

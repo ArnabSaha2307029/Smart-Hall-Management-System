@@ -7,8 +7,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.media.AudioAttributes;
 import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -16,9 +20,11 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.TaskStackBuilder;
 
 import com.example.smarthall.R;
+import com.example.smarthall.SmartHallApp;
 import com.example.smarthall.ui.admin.AdminDashboardActivity;
 import com.example.smarthall.ui.chat.ChatActivity;
 import com.example.smarthall.ui.complaint.ComplaintsListActivity;
+import com.example.smarthall.ui.sos.EmergencyAlertActivity;
 import com.example.smarthall.ui.student.NoticeDetailActivity;
 import com.example.smarthall.ui.student.StudentDashboardActivity;
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -30,6 +36,7 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
 
     public static final String NOTICE_CHANNEL_ID = "hall_notices_channel";
     public static final String CHAT_CHANNEL_ID = "hall_chat_channel";
+    public static final String SOS_CHANNEL_ID = "sos_emergency_alert_channel";
     private static final String CHANNEL_ID = "hall_notices_channel";
 
     @Override
@@ -50,6 +57,12 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
         }
 
         String type = data.get("type");
+        String from = remoteMessage.getFrom();
+        if ("sos_alert".equals(type) || (from != null && from.contains("hall_sos_alerts"))) {
+            handleSosAlertMessage(data);
+            return;
+        }
+
         if ("complaint".equals(type)) {
             String sender = remoteMessage.getData().getOrDefault("sender", "");
             if (!currentUserRole.isEmpty() && currentUserRole.equalsIgnoreCase(sender)) {
@@ -256,6 +269,104 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
         }
     }
 
+    private void handleSosAlertMessage(Map<String, String> data) {
+        String senderRoll = data.get("senderRoll");
+        if (senderRoll == null || senderRoll.isEmpty()) {
+            senderRoll = data.get("sender_roll");
+        }
+
+        SharedPreferences prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE);
+        String currentUserRoll = prefs.getString("roll", "");
+        if (currentUserRoll.isEmpty()) {
+            currentUserRoll = prefs.getString("student_roll", "");
+        }
+        if (currentUserRoll.isEmpty()) {
+            currentUserRoll = prefs.getString("user_roll", "");
+        }
+
+        if (!TextUtils.isEmpty(currentUserRoll) && !TextUtils.isEmpty(senderRoll)
+                && currentUserRoll.trim().equalsIgnoreCase(senderRoll.trim())) {
+            Log.d("FCM_SOS", "Ignored self-sent SOS alert for sender roll: " + senderRoll);
+            return;
+        }
+
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (powerManager != null) {
+            PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    "SmartHall:SosFcmWakeLock"
+            );
+            wakeLock.acquire(10 * 1000L);
+        }
+
+        createNotificationChannels();
+
+        String senderName = data.get("senderName");
+        String roomNo = data.get("roomNo");
+        if (TextUtils.isEmpty(roomNo)) {
+            roomNo = data.get("location");
+        }
+        String message = data.get("message");
+        String timestampStr = data.get("timestamp");
+        long timestamp = System.currentTimeMillis();
+        if (!TextUtils.isEmpty(timestampStr)) {
+            try {
+                timestamp = Long.parseLong(timestampStr);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        Intent alertIntent = new Intent(this, EmergencyAlertActivity.class);
+        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        alertIntent.putExtra("location", !TextUtils.isEmpty(roomNo) ? ("Room " + roomNo) : "Emergency Location");
+        alertIntent.putExtra("incident", !TextUtils.isEmpty(message) ? message : "Immediate Assistance Needed");
+        alertIntent.putExtra("senderName", senderName);
+        alertIntent.putExtra("senderRoll", senderRoll);
+        alertIntent.putExtra("timestamp", timestamp);
+
+        if (SmartHallApp.isAppInForeground()) {
+            startActivity(alertIntent);
+        }
+
+        PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(
+                this,
+                (int) (System.currentTimeMillis() & 0xfffffff),
+                alertIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        String notifTitle = "EMERGENCY SOS: Room " + (!TextUtils.isEmpty(roomNo) ? roomNo : "Alert");
+        String notifBody = (!TextUtils.isEmpty(senderName) ? senderName : "Resident")
+                + (!TextUtils.isEmpty(senderRoll) ? (" (" + senderRoll + ")") : "")
+                + " needs immediate assistance!";
+
+        long[] vibrationPattern = new long[]{0, 800, 400, 800, 400, 800};
+        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        if (alarmSound == null) {
+            alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, SOS_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notifications)
+                .setContentTitle(notifTitle)
+                .setContentText(notifBody)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(notifBody + (!TextUtils.isEmpty(message) ? ("\n" + message) : "")))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(fullScreenPendingIntent, true)
+                .setContentIntent(fullScreenPendingIntent)
+                .setSound(alarmSound)
+                .setVibrate(vibrationPattern)
+                .setColor(0xFFB71C1C)
+                .setAutoCancel(true);
+
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null) {
+            nm.notify((int) (System.currentTimeMillis() & 0xfffffff), builder.build());
+        }
+    }
+
     @Override
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
@@ -286,6 +397,27 @@ public class SmartHallMessagingService extends FirebaseMessagingService {
                 chatChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
                 chatChannel.setBypassDnd(true);
                 nm.createNotificationChannel(chatChannel);
+
+                NotificationChannel sosChannel = new NotificationChannel(
+                        SOS_CHANNEL_ID,
+                        "Emergency Alerts",
+                        NotificationManager.IMPORTANCE_HIGH);
+                sosChannel.setDescription("High priority full-screen emergency SOS alerts");
+                sosChannel.enableLights(true);
+                sosChannel.setLightColor(Color.RED);
+                sosChannel.enableVibration(true);
+                sosChannel.setVibrationPattern(new long[]{0, 800, 400, 800, 400, 800});
+                sosChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                sosChannel.setBypassDnd(true);
+                AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build();
+                Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                if (alarmUri != null) {
+                    sosChannel.setSound(alarmUri, audioAttributes);
+                }
+                nm.createNotificationChannel(sosChannel);
             }
         }
     }
