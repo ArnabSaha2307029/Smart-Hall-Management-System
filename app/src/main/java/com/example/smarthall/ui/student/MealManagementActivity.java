@@ -448,14 +448,16 @@ public class MealManagementActivity extends BaseActivity {
                             })
                             .addOnFailureListener(e -> {
                                 binding.btnUpdateMeal.setEnabled(true);
-                                Log.e("MEAL_UPDATE", "Failed to update meals", e);
-                                Toast.makeText(this, "Failed to update meals. Check connection.", Toast.LENGTH_SHORT).show();
+                                String msg = e != null ? e.getMessage() : "Unknown error";
+                                Log.e("StudentDashboardError", "Operation failed: Failed to update meals: " + msg, e);
+                                Toast.makeText(this, "Failed to update meals: " + msg, Toast.LENGTH_SHORT).show();
                             });
                 })
                 .addOnFailureListener(e -> {
                     binding.btnUpdateMeal.setEnabled(true);
-                    Log.e("MEAL_UPDATE", "Failed to check closures", e);
-                    Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                    String msg = e != null ? e.getMessage() : "Unknown error";
+                    Log.e("StudentDashboardError", "Operation failed: Failed to check closures: " + msg, e);
+                    Toast.makeText(this, "Failed to update meals: " + msg, Toast.LENGTH_SHORT).show();
                 });
     }
 

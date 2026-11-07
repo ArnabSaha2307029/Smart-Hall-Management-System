@@ -8,6 +8,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -17,6 +18,8 @@ import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
@@ -170,6 +173,27 @@ public class AdminDashboardActivity extends BaseActivity {
         switchTab(TAB_STUDENTS);
         Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
         ContextCompat.startForegroundService(this, serviceIntent);
+        checkAndRequestBatteryOptimizationExemption();
+    }
+
+    private void checkAndRequestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                    SharedPreferences prefs = getSharedPreferences("smart_hall_prefs", MODE_PRIVATE);
+                    boolean alreadyPrompted = prefs.getBoolean("battery_optimization_prompted", false);
+                    if (!alreadyPrompted) {
+                        prefs.edit().putBoolean("battery_optimization_prompted", true).apply();
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("AdminDashboard", "Failed to request battery optimization exemption", e);
+            }
+        }
     }
 
     @Override
@@ -597,8 +621,9 @@ public class AdminDashboardActivity extends BaseActivity {
                     FcmNotificationSender.sendNoticeTopicNotification(AdminDashboardActivity.this, id, title, message, poster, noticeModel.getTimestamp());
                     Toast.makeText(AdminDashboardActivity.this, "Notice published successfully", Toast.LENGTH_SHORT).show();
                 } else {
-                    Log.e("AdminDashboard", "Failed to publish notice", task.getException());
-                    Toast.makeText(AdminDashboardActivity.this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                    String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                    Log.e("StudentDashboardError", "Operation failed: Failed to publish notice: " + msg, task.getException());
+                    Toast.makeText(AdminDashboardActivity.this, "Failed to publish notice: " + msg, Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -957,8 +982,9 @@ public class AdminDashboardActivity extends BaseActivity {
                 dialog.dismiss();
             }).addOnFailureListener(e -> {
                 dialogBinding.btnApplyClosure.setEnabled(true);
-                Log.e("AdminDashboard", "Failed to update schedule", e);
-                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                String msg = e != null ? e.getMessage() : "Unknown error";
+                Log.e("StudentDashboardError", "Operation failed: Failed to update schedule: " + msg, e);
+                Toast.makeText(this, "Failed to update schedule: " + msg, Toast.LENGTH_SHORT).show();
             });
         });
 

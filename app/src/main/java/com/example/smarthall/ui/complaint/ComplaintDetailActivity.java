@@ -287,8 +287,9 @@ public class ComplaintDetailActivity extends BaseActivity {
             if (task.isSuccessful()) {
                 binding.etCommentInput.setText("");
             } else {
-                Log.e("ComplaintDetail", "Failed to post comment", task.getException());
-                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                Log.e("StudentDashboardError", "Operation failed: Failed to post comment: " + msg, task.getException());
+                Toast.makeText(this, "Failed to post comment: " + msg, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -330,8 +331,9 @@ public class ComplaintDetailActivity extends BaseActivity {
                         finish();
                     } else {
                         binding.btnDeleteComplaint.setEnabled(true);
-                        Log.e("ComplaintDetail", "Failed to delete complaint", task.getException());
-                        Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                        String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                        Log.e("StudentDashboardError", "Operation failed: Failed to delete complaint: " + msg, task.getException());
+                        Toast.makeText(this, "Failed to delete complaint: " + msg, Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -355,8 +357,9 @@ public class ComplaintDetailActivity extends BaseActivity {
                 );
                 Toast.makeText(this, "Complaint marked as resolved", Toast.LENGTH_SHORT).show();
             } else {
-                Log.e("ComplaintDetail", "Failed to update complaint status", task.getException());
-                Toast.makeText(this, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_SHORT).show();
+                String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                Log.e("StudentDashboardError", "Operation failed: Failed to update complaint status: " + msg, task.getException());
+                Toast.makeText(this, "Failed to update complaint status: " + msg, Toast.LENGTH_SHORT).show();
             }
         });
     }

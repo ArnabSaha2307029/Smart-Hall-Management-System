@@ -7,7 +7,7 @@
     <group android:id="@+id/group_social_links">
         <item
             android:id="@+id/nav_link_google"
-            android:title="@string/btn_link_google"
+            android:title="@string/btn_google_linked"
             android:icon="@drawable/ic_baseline_link_24" />
     </group>
     <group android:id="@+id/group_logout">

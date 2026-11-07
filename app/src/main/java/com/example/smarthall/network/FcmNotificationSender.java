@@ -53,12 +53,7 @@ public class FcmNotificationSender {
                 credentials.refreshIfExpired();
                 accessToken = credentials.getAccessToken().getTokenValue();
             } catch (Exception e) {
-                Log.e("FCM_AUTH", "Failed to obtain OAuth2 token", e);
-                if (context != null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                            Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
-                    );
-                }
+                Log.e("StudentDashboardError", "Operation failed: Failed to obtain OAuth2 token for FCM: " + e.getMessage(), e);
                 return;
             }
 
@@ -93,21 +88,11 @@ public class FcmNotificationSender {
                     String errorBody = response.body() != null ? response.body().string() : "";
                     Log.d("FCM_HTTP", "FCM HTTP response code: " + code + " | body: " + errorBody);
                     if (!response.isSuccessful()) {
-                        Log.e("FCM_HTTP", "FCM delivery failed with code: " + code + " | body: " + errorBody);
-                        if (context != null) {
-                            new Handler(Looper.getMainLooper()).post(() ->
-                                    Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
-                            );
-                        }
+                        Log.e("StudentDashboardError", "Operation failed: FCM delivery failed with code: " + code + " | body: " + errorBody);
                     }
                 }
             } catch (Exception e) {
-                Log.e("FCM_HTTP", "Failed to send FCM notification", e);
-                if (context != null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                            Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show()
-                    );
-                }
+                Log.e("StudentDashboardError", "Operation failed: Failed to send FCM notification: " + e.getMessage(), e);
             }
         });
     }

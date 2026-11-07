@@ -357,8 +357,9 @@ public class PaymentGatewayBottomSheet extends BottomSheetDialogFragment {
 
             Context context = getContext();
             if (context != null) {
-                Log.e("PaymentGateway", "Payment execution failed", e);
-                Toast.makeText(context, "Unable to complete request. Please check your internet connection.", Toast.LENGTH_LONG).show();
+                String msg = e != null ? e.getMessage() : "Payment processing error";
+                Log.e("StudentDashboardError", "Operation failed: Payment execution failed: " + msg, e);
+                Toast.makeText(context, "Payment failed: " + msg, Toast.LENGTH_SHORT).show();
             }
         });
     }

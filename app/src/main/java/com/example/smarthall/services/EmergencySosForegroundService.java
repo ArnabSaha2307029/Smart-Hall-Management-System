@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -22,6 +23,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import com.example.smarthall.R;
+import com.example.smarthall.ui.auth.LoginActivity;
 import com.example.smarthall.ui.sos.EmergencyAlertActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -52,17 +54,38 @@ public class EmergencySosForegroundService extends Service {
         super.onCreate();
         createServiceNotificationChannel();
         createAlertNotificationChannel();
+        startForegroundServiceNotification();
+        attachSosListener();
+    }
 
-        Notification notification = new NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
+    private void startForegroundServiceNotification() {
+        Intent launchIntent = new Intent(this, LoginActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent contentPendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("SmartHall Safety Active")
                 .setContentText("Monitoring emergency hall alerts")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
-                .build();
+                .setAutoCancel(false)
+                .setOnlyAlertOnce(true)
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+                .setContentIntent(contentPendingIntent);
 
-        startForeground(SERVICE_NOTIFICATION_ID, notification);
-        attachSosListener();
+        Notification notification = builder.build();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(SERVICE_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(SERVICE_NOTIFICATION_ID, notification);
+        }
     }
 
     private void createServiceNotificationChannel() {
@@ -111,6 +134,9 @@ public class EmergencySosForegroundService extends Service {
     }
 
     private void attachSosListener() {
+        if (sosRef != null && sosListener != null) {
+            return;
+        }
         sosRef = FirebaseDatabase.getInstance(RTDB_URL).getReference("emergency_sos");
         sosListener = new ValueEventListener() {
             @Override
@@ -240,12 +266,19 @@ public class EmergencySosForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        startForegroundServiceNotification();
+        if (sosRef == null || sosListener == null) {
+            attachSosListener();
+        }
         return START_STICKY;
     }
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
         super.onTaskRemoved(rootIntent);
+        if (sosRef == null || sosListener == null) {
+            attachSosListener();
+        }
     }
 
     @Nullable
