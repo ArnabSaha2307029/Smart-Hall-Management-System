@@ -65,6 +65,12 @@ public class SmartHallApp extends Application {
         createNotificationChannels();
         logDeviceToken();
         startSosServiceIfLoggedIn();
+
+        android.content.SharedPreferences prefs = getSharedPreferences("smart_hall_prefs", MODE_PRIVATE);
+        if (prefs.contains("night_mode_preference")) {
+            int mode = prefs.getInt("night_mode_preference", androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(mode);
+        }
     }
 
     private void startSosServiceIfLoggedIn() {

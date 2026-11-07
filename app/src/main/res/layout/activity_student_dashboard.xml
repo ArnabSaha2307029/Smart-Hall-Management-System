@@ -266,6 +266,20 @@
                             android:textStyle="bold"
                             android:layout_marginTop="4dp" />
 
+                        <TextView
+                            android:id="@+id/tvDiningManagerBadge"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_dining_manager_badge"
+                            android:padding="10dp"
+                            android:gravity="center"
+                            android:text="Dining Manager"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorPrimary"
+                            android:visibility="gone" />
+
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"

@@ -15,6 +15,8 @@ public class Student {
     private String dining;
     private String profileImageBase64;
     private String hallName;
+    private boolean isDiningManager;
+    private String allocationStatus;
 
     public Student() {
     }
@@ -49,6 +51,15 @@ public class Student {
         this.boarderNo = boarderNo;
         this.dining = dining;
         this.profileImageBase64 = profileImageBase64;
+    }
+
+    public Student(String id, String name, String rollNumber, String department,
+                   String phone, String email, String allocatedRoom,
+                   String allocatedSeat, String feeStatus, String password,
+                   String boarderNo, String dining, String profileImageBase64,
+                   boolean isDiningManager) {
+        this(id, name, rollNumber, department, phone, email, allocatedRoom, allocatedSeat, feeStatus, password, boarderNo, dining, profileImageBase64);
+        this.isDiningManager = isDiningManager;
     }
 
     public String getId() { return id; }
@@ -99,7 +110,13 @@ public class Student {
     public String getHallName() { return hallName != null && !hallName.isEmpty() ? hallName : "Amar Ekushey Hall"; }
     public void setHallName(String hallName) { this.hallName = hallName; }
 
-    private String allocationStatus;
+    public boolean isDiningManager() {
+        return isDiningManager;
+    }
+
+    public void setDiningManager(boolean diningManager) {
+        this.isDiningManager = diningManager;
+    }
 
     public String getRoom() {
         return allocatedRoom;

@@ -134,6 +134,8 @@ public class StudentDashboardActivity extends BaseActivity {
     private ActivityResultLauncher<Intent> googleLinkLauncher;
     private String linkedGoogleEmail;
     private NavigationView navigationView;
+    private DatabaseReference diningManagerRef;
+    private ValueEventListener diningManagerListener;
     private final ExecutorService imageProcessingExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -291,6 +293,10 @@ public class StudentDashboardActivity extends BaseActivity {
         navigationView = binding.navigationView;
         tvChatBadgeCount = binding.tvTopChatBadgeCount;
 
+        boolean cachedDm = prefs.getBoolean("is_dining_manager", false);
+        student.setDiningManager(cachedDm);
+        binding.tvDiningManagerBadge.setVisibility(cachedDm ? View.VISIBLE : View.GONE);
+
         setupHeader();
         setupNavigationDrawer();
         setupProfileCard();
@@ -303,6 +309,7 @@ public class StudentDashboardActivity extends BaseActivity {
         setupViewNoticesButton();
         setupMealManagementButton();
         setupUnpaidBillButton();
+        setupDiningManagerListener();
         loadProfileImage();
         binding.ivProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
         binding.cardProfileAvatar.setOnClickListener(v -> showImagePickerDialog());
@@ -324,6 +331,7 @@ public class StudentDashboardActivity extends BaseActivity {
         refreshComplaints();
         loadProfileImage();
         setupChatBadgeListener();
+        setupDiningManagerListener();
         Intent serviceIntent = new Intent(this, EmergencySosForegroundService.class);
         ContextCompat.startForegroundService(this, serviceIntent);
         updateDrawerMenuState();
@@ -391,6 +399,11 @@ public class StudentDashboardActivity extends BaseActivity {
             chatBadgeListener = null;
             chatBadgeRef = null;
         }
+        if (diningManagerRef != null && diningManagerListener != null) {
+            diningManagerRef.removeEventListener(diningManagerListener);
+            diningManagerListener = null;
+            diningManagerRef = null;
+        }
         if (imageProcessingExecutor != null && !imageProcessingExecutor.isShutdown()) {
             imageProcessingExecutor.shutdown();
         }
@@ -419,6 +432,54 @@ public class StudentDashboardActivity extends BaseActivity {
             }
         }
         return roll;
+    }
+
+    private void setupDiningManagerListener() {
+        String roll = getActiveStudentRoll();
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String uid = currentUser != null ? currentUser.getUid() : "";
+
+        if (diningManagerRef != null && diningManagerListener != null) {
+            diningManagerRef.removeEventListener(diningManagerListener);
+            diningManagerListener = null;
+            diningManagerRef = null;
+        }
+
+        FirebaseDatabase rtdb = FirebaseDatabase.getInstance("https://smart-hall-management-sy-748d2-default-rtdb.firebaseio.com");
+        String targetKey = !TextUtils.isEmpty(roll) ? roll : uid;
+        if (TextUtils.isEmpty(targetKey)) {
+            return;
+        }
+
+        diningManagerRef = rtdb.getReference("students").child(targetKey).child("isDiningManager");
+        diningManagerListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean isManager = false;
+                if (snapshot.exists()) {
+                    Boolean val = snapshot.getValue(Boolean.class);
+                    isManager = Boolean.TRUE.equals(val);
+                }
+                if (student != null) {
+                    student.setDiningManager(isManager);
+                }
+                if (binding != null && binding.tvDiningManagerBadge != null) {
+                    binding.tvDiningManagerBadge.setVisibility(isManager ? View.VISIBLE : View.GONE);
+                }
+                if (currentUser != null) {
+                    getSharedPreferences("student_prefs_" + currentUser.getUid(), Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("is_dining_manager", isManager)
+                            .apply();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("StudentDashboard", "Failed to listen for dining manager status", error.toException());
+            }
+        };
+        diningManagerRef.addValueEventListener(diningManagerListener);
     }
 
     private void setupChatBadgeListener() {
@@ -813,6 +874,9 @@ public class StudentDashboardActivity extends BaseActivity {
             if (cleanDining.isEmpty()) cleanDining = "East";
             binding.tvDiningHall.setText("Dining: " + cleanDining);
         }
+        if (binding.tvDiningManagerBadge != null) {
+            binding.tvDiningManagerBadge.setVisibility(student.isDiningManager() ? View.VISIBLE : View.GONE);
+        }
         updateDrawerMenuState();
     }
 
@@ -894,7 +958,15 @@ public class StudentDashboardActivity extends BaseActivity {
         }
         if (!TextUtils.isEmpty(base64Image)) student.setProfileImageBase64(base64Image);
 
+        Boolean isDm = doc.getBoolean("isDiningManager");
+        boolean isDiningManager = Boolean.TRUE.equals(isDm);
+        student.setDiningManager(isDiningManager);
+        if (binding.tvDiningManagerBadge != null) {
+            binding.tvDiningManagerBadge.setVisibility(isDiningManager ? View.VISIBLE : View.GONE);
+        }
+
         SharedPreferences.Editor editor = prefs.edit();
+        editor.putBoolean("is_dining_manager", isDiningManager);
         if (!TextUtils.isEmpty(name)) editor.putString("student_name", name);
         if (roll != null && !roll.trim().isEmpty()) {
             final String studentRoll = roll.trim().replaceAll("\\s+", "");
@@ -943,6 +1015,7 @@ public class StudentDashboardActivity extends BaseActivity {
         setupHeader();
         setupNavigationDrawer();
         setupProfileCard();
+        setupDiningManagerListener();
         setupSeatView();
         if (!TextUtils.isEmpty(roll)) {
             loadFeeRecordsFromFirestore();

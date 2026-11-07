@@ -1,6 +1,7 @@
 package com.example.smarthall.ui.adapters;
 
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -14,10 +15,22 @@ import java.util.List;
 
 public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.NoticeViewHolder> {
 
+    public interface OnNoticeDeleteListener {
+        void onDeleteClick(Notice notice);
+    }
+
     private List<Notice> noticeList;
+    private final boolean isAdmin;
+    private final OnNoticeDeleteListener deleteListener;
 
     public NoticeAdapter(List<Notice> noticeList) {
+        this(noticeList, false, null);
+    }
+
+    public NoticeAdapter(List<Notice> noticeList, boolean isAdmin, OnNoticeDeleteListener deleteListener) {
         this.noticeList = noticeList != null ? noticeList : new ArrayList<>();
+        this.isAdmin = isAdmin;
+        this.deleteListener = deleteListener;
     }
 
     @NonNull
@@ -30,7 +43,8 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.NoticeView
 
     @Override
     public void onBindViewHolder(@NonNull NoticeViewHolder holder, int position) {
-        holder.bind(noticeList.get(position));
+        Notice notice = noticeList.get(position);
+        holder.bind(notice, isAdmin, deleteListener);
     }
 
     @Override
@@ -51,10 +65,22 @@ public class NoticeAdapter extends RecyclerView.Adapter<NoticeAdapter.NoticeView
             this.binding = binding;
         }
 
-        void bind(Notice notice) {
+        void bind(Notice notice, boolean isAdmin, OnNoticeDeleteListener deleteListener) {
             binding.tvNoticeTitle.setText(notice.getTitle());
             binding.tvNoticeDate.setText(notice.getDatePosted());
             binding.tvNoticeMessage.setText(notice.getMessage());
+
+            if (isAdmin) {
+                binding.btnDeleteNotice.setVisibility(View.VISIBLE);
+                binding.btnDeleteNotice.setOnClickListener(v -> {
+                    if (deleteListener != null) {
+                        deleteListener.onDeleteClick(notice);
+                    }
+                });
+            } else {
+                binding.btnDeleteNotice.setVisibility(View.GONE);
+                binding.btnDeleteNotice.setOnClickListener(null);
+            }
         }
     }
 }
